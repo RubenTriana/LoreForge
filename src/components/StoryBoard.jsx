@@ -59,11 +59,48 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
           </filter>
         </defs>
 
-        {/* Dynamic Connections */}
-        <path
-          d={nodePositions.reduce((acc, pos, i) => i === 0 ? `M ${pos.x} ${pos.y}` : `${acc} L ${pos.x} ${pos.y}`, "")}
-          fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="8,6" opacity="0.15"
-        />
+        {/* Dynamic Connections with Flow Animation */}
+        {nodePositions.map((pos, i) => {
+          if (i === nodePositions.length - 1) return null;
+          const nextPos = nodePositions[i + 1];
+          const isActive = auditData[i].status !== 'PENDIENTE' && auditData[i+1].status !== 'PENDIENTE';
+          
+          return (
+            <g key={`conn-${i}`}>
+              {/* Base Line */}
+              <line 
+                x1={pos.x} y1={pos.y} x2={nextPos.x} y2={nextPos.y} 
+                stroke="rgba(255,255,255,0.05)" strokeWidth="1" 
+              />
+              
+              {/* Active Glow Line */}
+              {isActive && (
+                <motion.line
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  x1={pos.x} y1={pos.y} x2={nextPos.x} y2={nextPos.y}
+                  stroke="var(--accent)"
+                  strokeWidth="2"
+                  filter="url(#glow)"
+                  opacity="0.6"
+                />
+              )}
+
+              {/* Flow Particles (Animated Dashing) */}
+              {isActive && (
+                <motion.line
+                  x1={pos.x} y1={pos.y} x2={nextPos.x} y2={nextPos.y}
+                  stroke="white"
+                  strokeWidth="1.5"
+                  strokeDasharray="4, 12"
+                  animate={{ strokeDashoffset: [0, -16] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  opacity="0.8"
+                />
+              )}
+            </g>
+          );
+        })}
         
         {nodePositions.map((pos, i) => {
           const audit = auditData[i];
