@@ -229,6 +229,39 @@ export default function StoryBoard({ universeId }) {
     setIsSaving(false);
   };
 
+  const handleSmartSync = () => {
+    if (!selectedCharId || !steps) return;
+    const selectedChar = characters.find(c => c.id === selectedCharId);
+    if (!selectedChar) return;
+    
+    const charName = selectedChar.name.toLowerCase();
+    const newSummaries = { ...localSummaries };
+    
+    steps.forEach((step, i) => {
+      const content = step.content || '';
+      // Split into sentences (careful with acronyms, but good enough for now)
+      const sentences = content.split(/([.!?]\s+)/).filter(Boolean);
+      
+      const relevantSentences = [];
+      for (let j = 0; j < sentences.length; j++) {
+        const s = sentences[j];
+        if (s.toLowerCase().includes(charName) || s.toLowerCase().includes(`@${charName}`)) {
+          relevantSentences.push(s.trim());
+        }
+      }
+      
+      if (relevantSentences.length > 0) {
+        const extracted = relevantSentences.join(' ');
+        // If local summary is empty or doesn't include the extracted text, append or set
+        if (!newSummaries[i] || !newSummaries[i].includes(extracted)) {
+          newSummaries[i] = newSummaries[i] ? `${newSummaries[i]}\n${extracted}` : extracted;
+        }
+      }
+    });
+    
+    setLocalSummaries(newSummaries);
+  };
+
   const selectedChar = characters.find(c => c.id === selectedCharId);
 
   return (
@@ -243,12 +276,33 @@ export default function StoryBoard({ universeId }) {
         <div style={{ display: 'flex', gap: '10px' }}>
            {selectedCharId && (
              <>
-               <button onClick={() => setViewMode(viewMode === 'canvas' ? 'doctor' : 'canvas')} className="glass" style={{ padding: '10px 15px', color: 'white', borderColor: viewMode === 'doctor' ? 'var(--accent)' : 'var(--glass-border)' }}>
+               <button 
+                 onClick={handleSmartSync}
+                 className="glass" 
+                 style={{ padding: '10px 15px', color: 'var(--accent)', borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                 title="Extraer historias de la Escritura Maestra"
+               >
+                  <Sparkles size={18} /> Sincronización Inteligente
+               </button>
+               <button 
+                 onClick={() => setViewMode(viewMode === 'canvas' ? 'doctor' : 'canvas')} 
+                 className="glass" 
+                 style={{ 
+                   padding: '10px 25px', 
+                   minWidth: '200px',
+                   color: 'white', 
+                   borderColor: viewMode === 'doctor' ? 'var(--accent)' : 'var(--glass-border)',
+                   display: 'flex',
+                   alignItems: 'center',
+                   justifyContent: 'center',
+                   gap: '10px'
+                 }}
+               >
                   {viewMode === 'canvas' ? <Brain size={18} /> : <Map size={18} />} 
                   {viewMode === 'canvas' ? 'Modo Script Doctor' : 'Ver Mapa Visual'}
                </button>
-               <button onClick={saveEvolution} disabled={isSaving} className="glass" style={{ padding: '10px 20px', background: 'var(--accent)', border: 'none', color: 'white', borderRadius: '8px' }}>
-                  <Save size={18} /> Sincronizar
+               <button onClick={saveEvolution} disabled={isSaving} className="glass" style={{ padding: '10px 25px', background: 'var(--accent)', border: 'none', color: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px', justifyContent: 'center' }}>
+                  <Save size={18} /> Actualizar
                </button>
              </>
            )}
