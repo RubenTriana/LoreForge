@@ -26,15 +26,42 @@ import {
   Map,
   Activity
 } from 'lucide-react';
+import { motion, Reorder } from 'framer-motion';
 import './index.css';
+
+const DEFAULT_NAV_ITEMS = [
+  { id: 'dashboard', label: 'Nexus', icon: LayoutDashboard },
+  { id: 'characters', label: 'Población', icon: Users },
+  { id: 'world', label: 'Mundo (Lore)', icon: Globe },
+  { id: 'staircase', label: 'Escalera (Salva al Gato)', icon: Activity },
+  { id: 'objects', label: 'Inventario', icon: Package },
+  { id: 'board', label: 'Evolución', icon: TrendingUp },
+  { id: 'routes', label: 'Cartografía', icon: Map },
+  { id: 'drafts', label: 'Escribanía', icon: FileText },
+];
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [universes, setUniverses] = useState([]);
+  
+  // Dynamic Nav Items with persistence
+  const [navItems, setNavItems] = useState(() => {
+    const saved = localStorage.getItem('loreforge-nav-order');
+    if (saved) {
+      const savedIds = JSON.parse(saved);
+      // Map back to components to ensure icons are correctly referenced
+      return savedIds.map(id => DEFAULT_NAV_ITEMS.find(item => item.id === id)).filter(Boolean);
+    }
+    return DEFAULT_NAV_ITEMS;
+  });
 
   const charCount = useLiveQuery(() => db.characters.count()) || 0;
   const eventCount = useLiveQuery(() => db.events.count()) || 0;
   const locationCount = useLiveQuery(() => db.locations.count()) || 0;
+
+  useEffect(() => {
+    localStorage.setItem('loreforge-nav-order', JSON.stringify(navItems.map(i => i.id)));
+  }, [navItems]);
 
   useEffect(() => {
     const init = async () => {
@@ -53,17 +80,6 @@ function App() {
     init();
   }, []);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Nexus', icon: LayoutDashboard },
-    { id: 'characters', label: 'Población', icon: Users },
-    { id: 'world', label: 'Mundo (Lore)', icon: Globe },
-    { id: 'staircase', label: 'Escalera (Salva al Gato)', icon: Activity },
-    { id: 'objects', label: 'Inventario', icon: Package },
-    { id: 'board', label: 'Evolución', icon: TrendingUp },
-    { id: 'routes', label: 'Cartografía', icon: Map },
-    { id: 'drafts', label: 'Escribanía', icon: FileText },
-  ];
-
   return (
     <div className="app-container">
       <nav className="sidebar glass">
@@ -72,29 +88,41 @@ function App() {
           <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>LoreForge</h2>
         </div>
         
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px',
-              borderRadius: '8px',
-              background: activeTab === item.id ? 'var(--accent)' : 'transparent',
-              color: activeTab === item.id ? 'white' : 'var(--text-secondary)',
-              border: 'none',
-              textAlign: 'left',
-              width: '100%',
-              fontSize: '14px',
-              fontWeight: activeTab === item.id ? '600' : '400'
-            }}
-          >
-            <item.icon size={18} />
-            {item.label}
-          </button>
-        ))}
+        <Reorder.Group axis="y" values={navItems} onReorder={setNavItems} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, listStyle: 'none' }}>
+          {navItems.map(item => (
+            <Reorder.Item 
+              key={item.id} 
+              value={item}
+              whileDrag={{ scale: 1.05, boxShadow: "0 10px 20px rgba(0,0,0,0.4)", zIndex: 10 }}
+              style={{ listStyle: 'none' }}
+            >
+              <button
+                onClick={() => setActiveTab(item.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  background: activeTab === item.id ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
+                  color: activeTab === item.id ? 'white' : 'var(--text-secondary)',
+                  border: '1px solid transparent',
+                  borderColor: activeTab === item.id ? 'transparent' : 'rgba(255,255,255,0.05)',
+                  textAlign: 'left',
+                  width: '100%',
+                  fontSize: '14px',
+                  fontWeight: activeTab === item.id ? '600' : '400',
+                  cursor: 'grab',
+                  transition: 'all 0.2s ease',
+                  userSelect: 'none'
+                }}
+              >
+                <item.icon size={18} />
+                {item.label}
+              </button>
+            </Reorder.Item>
+          ))}
+        </Reorder.Group>
       </nav>
 
       <main className="main-content">

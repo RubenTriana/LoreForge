@@ -67,8 +67,9 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
         
         {nodePositions.map((pos, i) => {
           const audit = auditData[i];
-          const IconComp = SNYDER_BEATS[i].icon;
-          const statusColor = audit.status === 'EXITOSO' ? '#10b981' : (audit.status === 'DÉBIL' ? '#f59e0b' : '#444');
+          const isDead = audit.status === 'MUERTE';
+          const IconComp = isDead ? Skull : SNYDER_BEATS[i].icon;
+          const statusColor = isDead ? '#ef4444' : (audit.status === 'EXITOSO' ? '#10b981' : (audit.status === 'DÉBIL' ? '#f59e0b' : '#444'));
           const isGlowing = audit.status !== 'PENDIENTE';
 
           return (
@@ -179,16 +180,25 @@ export default function StoryBoard({ universeId }) {
       const hasSpecificSummary = summary.trim().length > 3;
       
       const combined = (summary + content).toLowerCase();
+      
+      // NEW: Death detection keywords
+      const deathKeywords = ['muere', 'muerto', 'muerta', 'muerte', 'asesinado', 'asesinada', 'fallece', 'liquida', 'eliminado', 'ejecutado'];
+      const isDeadState = deathKeywords.some(key => combined.includes(key)) && (hasSpecificSummary || isMentionedInMaster);
+
       const intensity = Math.min(Math.floor((combined.length / 50) * 20) + (combined.includes('!') ? 20 : 0), 100);
       
       let sentiment = { icon: "🕊️", label: "Vulnerabilidad" };
-      if (intensity > 70) sentiment = { icon: "🌑", label: "Caos / Tensión" };
+      if (isDeadState) sentiment = { icon: "💀", label: "Final de Arco" };
+      else if (intensity > 70) sentiment = { icon: "🌑", label: "Caos / Tensión" };
       else if (combined.includes('decide')) sentiment = { icon: "⚖️", label: "Resolución" };
       
       let promise = "Narrativa pendiente.";
       let status = "PENDIENTE";
 
-      if (hasSpecificSummary) {
+      if (isDeadState) {
+        status = "MUERTE";
+        promise = "El personaje ha fallecido en este hito.";
+      } else if (hasSpecificSummary) {
         status = "EXITOSO";
         promise = "Coherente con el arco.";
       } else if (isMentionedInMaster) {
