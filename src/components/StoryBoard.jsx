@@ -37,12 +37,12 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
     const height = 450;
     const padding = 60;
     for (let i = 0; i < 15; i++) {
-      const row = Math.floor(i / 5);
-      const col = i % 5;
-      const x = padding + (col * (width - padding * 2) / 4);
-      const y = padding + (row * (height - padding * 2) / 2);
-      const actualX = row % 2 === 0 ? x : (width - x);
-      pos.push({ x: actualX, y });
+        const row = Math.floor(i / 5);
+        const col = i % 5;
+        const x = padding + (col * (width - padding * 2) / 4);
+        const y = padding + (row * (height - padding * 2) / 2);
+        const actualX = row % 2 === 0 ? x : (width - x);
+        pos.push({ x: actualX, y });
     }
     return pos;
   }, []);
@@ -165,20 +165,40 @@ export default function StoryBoard({ universeId }) {
   }, [staircaseData]);
 
   const auditData = useMemo(() => {
+    if (!selectedCharId) return SNYDER_BEATS.map(beat => ({ title: beat.title, intensity: 0, sentiment: { icon: "🕊️", label: "Vulnerabilidad" }, status: "PENDIENTE", promise: "Selecciona un personaje." }));
+    
+    const selectedChar = characters.find(c => c.id === selectedCharId);
+    const charName = selectedChar?.name?.toLowerCase() || '';
+
     return SNYDER_BEATS.map((beat, i) => {
       const summary = steps[i]?.charSummaries?.[selectedCharId] || '';
       const content = steps[i]?.content || '';
+      
+      // Smart detection: check if char is in the summary OR mentioned in the master script
+      const isMentionedInMaster = content.toLowerCase().includes(charName) || content.toLowerCase().includes(`@${charName}`);
+      const hasSpecificSummary = summary.trim().length > 3;
+      
       const combined = (summary + content).toLowerCase();
       const intensity = Math.min(Math.floor((combined.length / 50) * 20) + (combined.includes('!') ? 20 : 0), 100);
-      const isFulfilled = summary.length > 5;
+      
       let sentiment = { icon: "🕊️", label: "Vulnerabilidad" };
       if (intensity > 70) sentiment = { icon: "🌑", label: "Caos / Tensión" };
       else if (combined.includes('decide')) sentiment = { icon: "⚖️", label: "Resolución" };
+      
       let promise = "Narrativa pendiente.";
-      if (isFulfilled) promise = "Coherente con el arco.";
-      return { title: beat.title, intensity, sentiment, status: isFulfilled ? "EXITOSO" : (content.length > 5 ? "DÉBIL" : "PENDIENTE"), promise };
+      let status = "PENDIENTE";
+
+      if (hasSpecificSummary) {
+        status = "EXITOSO";
+        promise = "Coherente con el arco.";
+      } else if (isMentionedInMaster) {
+        status = "DÉBIL";
+        promise = "Mencionado en el guion maestro.";
+      }
+
+      return { title: beat.title, intensity, sentiment, status, promise };
     });
-  }, [steps, selectedCharId]);
+  }, [steps, selectedCharId, characters]);
 
   useEffect(() => {
     if (selectedCharId && steps.length > 0) {

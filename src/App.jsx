@@ -8,7 +8,6 @@ import DraftManager from './components/DraftManager';
 import StoryBoard from './components/StoryBoard';
 import ObjectManager from './components/ObjectManager';
 import WorldManager from './components/WorldManager';
-import MissionManager from './components/MissionManager';
 import MapRoutes from './components/MapRoutes';
 import EventStaircase from './components/EventStaircase';
 import { 
@@ -60,7 +59,6 @@ function App() {
     { id: 'world', label: 'Mundo (Lore)', icon: Globe },
     { id: 'staircase', label: 'Escalera (Salva al Gato)', icon: Activity },
     { id: 'objects', label: 'Inventario', icon: Package },
-    { id: 'missions', label: 'Gestas', icon: Swords },
     { id: 'board', label: 'Evolución', icon: TrendingUp },
     { id: 'routes', label: 'Cartografía', icon: Map },
     { id: 'drafts', label: 'Escribanía', icon: FileText },
@@ -168,9 +166,6 @@ function App() {
             <EventStaircase universeId={universes[0]?.id} />
           )}
 
-          {activeTab === 'missions' && (
-            <MissionManager universeId={universes[0]?.id} />
-          )}
 
           {activeTab === 'routes' && (
             <MapRoutes universeId={universes[0]?.id} />
