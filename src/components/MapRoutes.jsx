@@ -33,7 +33,12 @@ export default function MapRoutes({ universeId }) {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
 
-  const savedRoute = useLiveQuery(() => db.routes.where({ universeId }).first(), [universeId]);
+  const savedRoute = useLiveQuery(() => universeId ? db.routes.where({ universeId }).first() : null, [universeId]);
+  const locations = useLiveQuery(
+    () => universeId ? db.locations.where('universeId').equals(Number(universeId)).toArray() : [],
+    [universeId]
+  ) || [];
+  const staircaseData = useLiveQuery(() => universeId ? db.staircase.where({ universeId }).first() : null, [universeId]);
 
   useEffect(() => {
     if (savedRoute) {
@@ -107,6 +112,12 @@ export default function MapRoutes({ universeId }) {
 
   const updatePointType = (id, type) => {
     const newPoints = points.map(p => p.id === id ? { ...p, type } : p);
+    setPoints(newPoints);
+    saveRoute(newPoints);
+  };
+
+  const updatePointLocation = (id, locId) => {
+    const newPoints = points.map(p => p.id === id ? { ...p, locationId: locId } : p);
     setPoints(newPoints);
     saveRoute(newPoints);
   };
@@ -189,13 +200,37 @@ export default function MapRoutes({ universeId }) {
         
         drawShape(ctx, p.type, p.x, p.y, 8);
         
+        const loreLoc = p.locationId ? locations.find(l => l.id === p.locationId) : null;
+        
         ctx.fillStyle = 'white';
         ctx.font = 'bold 12px Inter';
         ctx.shadowBlur = 4;
         ctx.shadowColor = 'black';
-        ctx.fillText(isSelected ? 'Seleccionado' : `Hito ${index + 1}`, p.x + 15, p.y + 5);
+        ctx.fillText(loreLoc ? loreLoc.name : `Punto ${index + 1}`, p.x + 15, p.y + 5);
         ctx.shadowBlur = 0;
       });
+
+      // Draw Journey Overlays (if staircase has locations linked)
+      if (staircaseData) {
+        const steps = JSON.parse(staircaseData.steps || '[]');
+        steps.forEach((step, stepIdx) => {
+          if (step.locationId) {
+            const point = points.find(p => p.locationId === step.locationId);
+            if (point) {
+              // Draw a small badge with step number
+              ctx.beginPath();
+              ctx.fillStyle = 'var(--accent)';
+              ctx.arc(point.x - 20, point.y - 20, 10, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = 'white';
+              ctx.font = 'bold 10px Inter';
+              ctx.textAlign = 'center';
+              ctx.fillText(stepIdx + 1, point.x - 20, point.y - 16);
+              ctx.textAlign = 'left';
+            }
+          }
+        });
+      }
     };
 
     if (mapImageUrl) {
@@ -298,6 +333,25 @@ export default function MapRoutes({ universeId }) {
                     <span style={{ fontSize: '9px' }}>{type.toUpperCase()}</span>
                   </button>
                 ))}
+              </div>
+
+              <div style={{ marginTop: '1.5rem' }}>
+                <label style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>VINCULAR A LORE</label>
+                <select 
+                  className="glass"
+                  value={points.find(p => p.id === selectedPointId)?.locationId || ''}
+                  onChange={(e) => updatePointLocation(selectedPointId, Number(e.target.value) || null)}
+                  style={{ 
+                    width: '100%', padding: '8px', background: 'rgba(0,0,0,0.5)', 
+                    border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="" style={{ background: '#1a1a2e', color: 'white' }}>No vinculado</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id} style={{ background: '#1a1a2e', color: 'white' }}>{loc.name}</option>
+                  ))}
+                </select>
               </div>
               <div style={{ marginTop: '1rem', fontSize: '11px', opacity: 0.6, display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Move size={12} /> Arrastra en el mapa para mover

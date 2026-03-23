@@ -201,15 +201,21 @@ function App() {
           )}
           
           {activeTab === 'world' && (
-            <WorldManager universe={universes[0]} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              <WorldManager universe={universes[0]} />
+              <LocationManager universeId={universes[0]?.id} />
+            </div>
           )}
 
           {activeTab === 'staircase' && (
-            <EventStaircase 
-              universeId={universes[0]?.id} 
-              initialStep={staircaseJumpStep}
-              highlightCharId={staircaseHighlightCharId}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              <EventStaircase 
+                universeId={universes[0]?.id} 
+                initialStep={staircaseJumpStep}
+                highlightCharId={staircaseHighlightCharId}
+              />
+              <TimelineManager universeId={universes[0]?.id} />
+            </div>
           )}
 
           {activeTab === 'routes' && (

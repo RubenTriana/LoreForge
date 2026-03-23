@@ -3,7 +3,7 @@ import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { 
   ChevronRight, Save, User as UserIcon, Type, Target, Clock, 
-  CheckCircle2, Info, Plus, X, Users, AtSign
+  CheckCircle2, Info, Plus, X, Users, AtSign, MapPin
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -29,11 +29,19 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
   const [selectedStep, setSelectedStep] = useState(initialStep);
   const [editingContent, setEditingContent] = useState("");
   const [involvedIds, setInvolvedIds] = useState([]);
+  const [selectedLocationId, setSelectedLocationId] = useState(null);
   const [showCastPanel, setShowCastPanel] = useState(false);
   const [newCharName, setNewCharName] = useState("");
 
-  const characters = useLiveQuery(() => db.characters.where({ universeId }).toArray()) || [];
-  const staircaseData = useLiveQuery(() => db.staircase.where({ universeId }).first(), [universeId]);
+  const characters = useLiveQuery(
+    () => universeId ? db.characters.where('universeId').equals(Number(universeId)).toArray() : [], 
+    [universeId]
+  ) || [];
+  const locations = useLiveQuery(
+    () => universeId ? db.locations.where('universeId').equals(Number(universeId)).toArray() : [], 
+    [universeId]
+  ) || [];
+  const staircaseData = useLiveQuery(() => universeId ? db.staircase.where({ universeId }).first() : null, [universeId]);
 
   useEffect(() => {
     setSelectedStep(initialStep);
@@ -48,9 +56,11 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
       if (steps[selectedStep]) {
         setEditingContent(steps[selectedStep].content || '');
         setInvolvedIds(steps[selectedStep].characterIds || []);
+        setSelectedLocationId(steps[selectedStep].locationId || null);
       } else {
         setEditingContent('');
         setInvolvedIds([]);
+        setSelectedLocationId(null);
       }
     }
   }, [staircaseData, selectedStep]);
@@ -84,6 +94,7 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
     steps[selectedStep] = { 
       content: editingContent, 
       characterIds: finalIds,
+      locationId: selectedLocationId,
       charSummaries: currentSummaries 
     };
 
@@ -141,7 +152,23 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
         <div className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem', overflowY: 'auto' }}>
            <div style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
               <h3 style={{ fontSize: '1.4rem' }}>{SNYDER_BEATS[selectedStep].title}</h3>
-              <p style={{ color: 'var(--accent)', fontSize: '0.85rem' }}><Target size={14} /> Objetivo: {SNYDER_BEATS[selectedStep].objective}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+                <p style={{ color: 'var(--accent)', fontSize: '0.85rem' }}><Target size={14} /> Objetivo: {SNYDER_BEATS[selectedStep].objective}</p>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '5px 12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                  <MapPin size={14} color="var(--accent)" />
+                  <select 
+                    value={selectedLocationId || ''} 
+                    onChange={(e) => setSelectedLocationId(Number(e.target.value) || null)}
+                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.8rem', cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value="" style={{ background: '#1a1a2e', color: 'white' }}>Sin localización</option>
+                    {locations.map(loc => (
+                      <option key={loc.id} value={loc.id} style={{ background: '#1a1a2e', color: 'white' }}>{loc.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
            </div>
            
            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
