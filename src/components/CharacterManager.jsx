@@ -91,13 +91,20 @@ export default function CharacterManager({ universeId }) {
                   const el = document.getElementById('mainFileInput');
                   if (el) el.click();
                 }} style={{ 
-                  borderRadius: '16px', height: '200px', cursor: 'pointer', overflow: 'hidden', position: 'relative',
-                  border: '2px dashed var(--glass-border)', background: formData.imageUrl ? `url(${formData.imageUrl}) center/cover no-repeat` : 'rgba(124,58,237,0.05)',
+                  borderRadius: '16px', width: '100%', aspectRatio: '2/3', cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                  border: '2px dashed var(--glass-border)', background: 'rgba(124,58,237,0.05)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s'
                 }}>
+                  {formData.imageUrl && (
+                    <img 
+                      src={formData.imageUrl} 
+                      alt="Vista previa" 
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} 
+                    />
+                  )}
                   {formData.imageUrl && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }} />}
                   <Camera size={32} style={{ position: 'relative', zIndex: 1, color: 'var(--accent)' }} />
-                  <span style={{ fontSize: '0.9rem', position: 'relative', zIndex: 1, marginTop: '8px' }}>{formData.imageUrl ? 'Cambiar Retrato' : 'Subir Retrato de Perfil'}</span>
+                  <span style={{ fontSize: '0.9rem', position: 'relative', zIndex: 1, marginTop: '8px', fontWeight: '500' }}>{formData.imageUrl ? 'Cambiar Retrato' : 'Subir Retrato de Perfil'}</span>
                   <input id="mainFileInput" type="file" accept="image/*" onChange={(e) => handleFileChange(e)} style={{ display: 'none' }} />
                 </div>
               </div>
@@ -135,9 +142,16 @@ export default function CharacterManager({ universeId }) {
             className="card glass" 
             style={{ display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden', borderRadius: '24px', border: '1px solid var(--glass-border)', transition: 'all 0.3s' }}
           >
-            {/* Cabecera / Imagen con Aspect Ratio Fijo 16:9 */}
-            <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', background: char.imageUrl ? `url(${char.imageUrl}) center/cover no-repeat` : 'var(--glass-bg)', overflow: 'hidden' }}>
-               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)' }} />
+            {/* Cabecera / Imagen con Aspect Ratio Fijo 2:3 */}
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '2/3', background: 'var(--bg-dark)', overflow: 'hidden' }}>
+               {char.imageUrl && (
+                 <img 
+                   src={char.imageUrl} 
+                   alt={char.name} 
+                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} 
+                 />
+               )}
+               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.1) 40%, transparent 100%)' }} />
                
                {!char.imageUrl && (
                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', opacity: 0.5 }}>
