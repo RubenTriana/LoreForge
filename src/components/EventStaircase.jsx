@@ -8,21 +8,21 @@ import {
 import { motion } from 'framer-motion';
 
 const SNYDER_BEATS = [
-  { title: "Imagen Inicial", objective: "Establecer el tono y el mundo antes del cambio." },
-  { title: "Declaración del Tema", objective: "Indicar sutilmente de qué trata realmente la historia (lección moral)." },
-  { title: "Planteamiento", objective: "Presentar a los personajes y sus carencias." },
-  { title: "Catalizador", objective: "El evento que cambia la vida del protagonista." },
-  { title: "Debate", objective: "El protagonista duda o se resiste al cambio." },
-  { title: "Paso al Acto 2", objective: "El héroe toma la decisión consciente de actuar." },
-  { title: "Trama B", objective: "Relación secundaria que refuerza el tema (romance o amistad)." },
-  { title: "Juegos y Risas", objective: "Cumplir la 'promesa de la premisa' (lo divertido o emocionante)." },
-  { title: "Punto Medio", objective: "Un pico de éxito falso o una derrota aparente." },
-  { title: "Los Malos Cierran el Cerco", objective: "Los problemas internos y externos se complican." },
-  { title: "Todo Está Perdido", objective: "El protagonista toca fondo; alguien suele morir." },
-  { title: "La Noche Oscura del Alma", objective: "El héroe reflexiona sobre su fracaso." },
-  { title: "Paso al Acto 3", objective: "Se encuentra la solución combinando las lecciones de A y B." },
-  { title: "Final", objective: "El protagonista derrota al antagonista y cambia el mundo." },
-  { title: "Imagen Final", objective: "El espejo de la imagen inicial, mostrando el cambio total." }
+  { title: "Imagen Inicial", objective: "Establecer el tono y el mundo antes del cambio.", pages: "1–2" },
+  { title: "Declaración del Tema", objective: "Indicar sutilmente de qué trata realmente la historia (lección moral).", pages: "5–6" },
+  { title: "Planteamiento", objective: "Presentar a los personajes y sus carencias.", pages: "1–20" },
+  { title: "Catalizador", objective: "El evento que cambia la vida del protagonista.", pages: "12–14" },
+  { title: "Debate", objective: "El protagonista duda o se resiste al cambio.", pages: "12–50" },
+  { title: "Paso al Acto 2", objective: "El héroe toma la decisión consciente de actuar.", pages: "25–26" },
+  { title: "Trama B", objective: "Relación secundaria que refuerza el tema (romance o amistad).", pages: "30–32" },
+  { title: "Juegos y Risas", objective: "Cumplir la 'promesa de la premisa' (lo divertido o emocionante).", pages: "30–110" },
+  { title: "Punto Medio", objective: "Un pico de éxito falso o una derrota aparente.", pages: "55–60" },
+  { title: "Los Malos Cierran el Cerco", objective: "Los problemas internos y externos se complican.", pages: "55–150" },
+  { title: "Todo Está Perdido", objective: "El protagonista toca fondo; alguien suele morir.", pages: "75–76" },
+  { title: "La Noche Oscura del Alma", objective: "El héroe reflexiona sobre su fracaso.", pages: "75–170" },
+  { title: "Paso al Acto 3", objective: "Se encuentra la solución combinando las lecciones de A y B.", pages: "85–86" },
+  { title: "Final", objective: "El protagonista derrota al antagonista y cambia el mundo.", pages: "85–220" },
+  { title: "Imagen Final", objective: "El espejo de la imagen inicial, mostrando el cambio total.", pages: "220" }
 ];
 
 export default function EventStaircase({ universeId, initialStep = 0, highlightCharId = null }) {
@@ -143,7 +143,10 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
                 <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: isCompleted ? '#10b981' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}>
                   {i + 1}
                 </div>
-                <span style={{ fontSize: '12px', fontWeight: selectedStep === i ? '600' : '400' }}>{beat.title}</span>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontWeight: selectedStep === i ? '600' : '400' }}>{beat.title}</span>
+                  <span style={{ fontSize: '10px', opacity: 0.5, fontStyle: 'italic' }}>p. {beat.pages}</span>
+                </div>
               </button>
             );
           })}
@@ -153,7 +156,10 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
            <div style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
               <h3 style={{ fontSize: '1.4rem' }}>{SNYDER_BEATS[selectedStep].title}</h3>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                <p style={{ color: 'var(--accent)', fontSize: '0.85rem' }}><Target size={14} /> Objetivo: {SNYDER_BEATS[selectedStep].objective}</p>
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                  <p style={{ color: 'var(--accent)', fontSize: '0.85rem' }}><Target size={14} /> Objetivo: {SNYDER_BEATS[selectedStep].objective}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', opacity: 0.8 }}><Clock size={14} /> Páginas Sugeridas: {SNYDER_BEATS[selectedStep].pages}</p>
+                </div>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '5px 12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                   <MapPin size={14} color="var(--accent)" />
@@ -170,7 +176,6 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
                 </div>
               </div>
            </div>
-           
            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <textarea 
                 value={editingContent}
@@ -201,17 +206,16 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
                 {characters.map(char => (
                    <div 
                      key={char.id} 
-                     className="glass" 
-                     style={{ 
-                       padding: '10px', 
-                       borderRadius: '8px', 
-                       display: 'flex', 
-                       justifyContent: 'space-between', 
-                       alignItems: 'center',
-                       border: char.id === highlightCharId ? '1px solid var(--accent)' : '1px solid transparent',
-                       background: char.id === highlightCharId ? 'rgba(var(--accent-rgb), 0.1)' : 'rgba(255,255,255,0.03)'
-                     }}
-                   >
+                     className="glass"                      style={{ 
+                        padding: '10px', 
+                        borderRadius: '8px', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        border: char.id === highlightCharId ? '1px solid var(--accent)' : '1px solid transparent',
+                        background: char.id === highlightCharId ? 'rgba(var(--accent-rgb), 0.1)' : 'rgba(255,255,255,0.03)'
+                      }}
+                    >
                       <span style={{ fontSize: '12px', color: char.id === highlightCharId ? 'var(--accent)' : 'white', fontWeight: char.id === highlightCharId ? 'bold' : 'normal' }}>
                         {char.name}
                       </span>
