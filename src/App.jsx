@@ -42,9 +42,18 @@ const DEFAULT_NAV_ITEMS = [
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [staircaseJumpStep, setStaircaseJumpStep] = useState(0);
+  const [staircaseHighlightCharId, setStaircaseHighlightCharId] = useState(null);
   const [universes, setUniverses] = useState([]);
   
+  const handleJumpToStep = (stepIndex, charId = null) => {
+    setStaircaseJumpStep(stepIndex);
+    setStaircaseHighlightCharId(charId);
+    setActiveTab('staircase');
+  };
+
   // Dynamic Nav Items with persistence
+  // ... (rest of logic)
   const [navItems, setNavItems] = useState(() => {
     const saved = localStorage.getItem('loreforge-nav-order');
     if (saved) {
@@ -183,7 +192,10 @@ function App() {
           )}
 
           {activeTab === 'board' && (
-            <StoryBoard universeId={universes[0]?.id} />
+            <StoryBoard 
+              universeId={universes[0]?.id} 
+              onNavigateToStep={handleJumpToStep}
+            />
           )}
           
           {activeTab === 'world' && (
@@ -191,7 +203,11 @@ function App() {
           )}
 
           {activeTab === 'staircase' && (
-            <EventStaircase universeId={universes[0]?.id} />
+            <EventStaircase 
+              universeId={universes[0]?.id} 
+              initialStep={staircaseJumpStep}
+              highlightCharId={staircaseHighlightCharId}
+            />
           )}
 
 

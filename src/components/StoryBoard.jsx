@@ -6,7 +6,7 @@ import {
   TrendingUp, Users, Save, CheckCircle2, Target, MessageSquare, 
   Sparkles, Map, Info, Activity, AlertTriangle, ThermometerSun, Brain,
   Image as ImageIcon, Type, Zap, Scale, DoorOpen, Heart, Smile, ArrowUp, 
-  ShieldAlert, Skull, Moon, Key, Swords, Camera, Eye
+  ShieldAlert, Skull, Moon, Key, Swords, Camera, Eye, HelpCircle
 } from 'lucide-react';
 
 const SNYDER_BEATS = [
@@ -104,13 +104,52 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
         
         {nodePositions.map((pos, i) => {
           const audit = auditData[i];
-          const isDead = audit.status === 'MUERTE';
-          const IconComp = isDead ? Skull : SNYDER_BEATS[i].icon;
-          const statusColor = isDead ? '#ef4444' : (audit.status === 'EXITOSO' ? '#10b981' : (audit.status === 'DÉBIL' ? '#f59e0b' : '#444'));
-          const isGlowing = audit.status !== 'PENDIENTE';
+          const isPending = audit.status === 'PENDIENTE';
+          const isGlowing = !isPending;
+          const statusColor = audit.status === 'EXITOSO' ? '#10b981' : (audit.status === 'DÉBIL' ? '#f59e0b' : (audit.status === 'MUERTE' ? '#ef4444' : '#666'));
+          const sentimentColor = audit.sentiment?.color || 'transparent';
+          
+          let IconComp = HelpCircle;
+          if (audit.status === 'MUERTE') IconComp = Skull;
+          else if (SNYDER_BEATS[i].title.includes('Imagen')) IconComp = ImageIcon; // Use ImageIcon as imported
+          else if (SNYDER_BEATS[i].title.includes('Tema')) IconComp = Type;
+          else if (SNYDER_BEATS[i].title.includes('Planteamiento')) IconComp = Users;
+          else if (SNYDER_BEATS[i].title.includes('Catalizador')) IconComp = Zap;
+          else if (SNYDER_BEATS[i].title.includes('Debate')) IconComp = Scale;
+          else if (SNYDER_BEATS[i].title.includes('Acto 2')) IconComp = DoorOpen;
+          else if (SNYDER_BEATS[i].title.includes('Trama B')) IconComp = Heart;
+          else if (SNYDER_BEATS[i].title.includes('Risas')) IconComp = Smile;
+          else if (SNYDER_BEATS[i].title.includes('Medio')) IconComp = ArrowUp;
+          else if (SNYDER_BEATS[i].title.includes('Cerco')) IconComp = ShieldAlert;
+          else if (SNYDER_BEATS[i].title.includes('Perdido')) IconComp = Skull;
+          else if (SNYDER_BEATS[i].title.includes('Alma')) IconComp = Moon;
+          else if (SNYDER_BEATS[i].title.includes('Acto 3')) IconComp = Key;
+          else if (SNYDER_BEATS[i].title.includes('Final')) IconComp = Swords;
 
           return (
-            <g key={i} cursor="pointer" onClick={() => onNodeClick(i)} className="evolution-node">
+            <motion.g 
+              key={`node-${i}`} 
+              initial={{ scale: 0 }} 
+              animate={{ scale: 1 }} 
+              transition={{ delay: i * 0.05 }}
+              style={{ cursor: isPending ? 'default' : 'pointer' }}
+              onClick={() => onNodeClick(i)}
+              className="evolution-node"
+            >
+              {/* Sentiment Halo (Dynamic Glow) */}
+              {!isPending && (
+                <motion.circle
+                  cx={pos.x} cy={pos.y} r="35"
+                  fill="none"
+                  stroke={sentimentColor}
+                  strokeWidth="2"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.1, 1] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                  filter="blur(8px)"
+                />
+              )}
+
               {/* Glass Button Base */}
               <rect 
                 x={pos.x - 22} y={pos.y - 22} width="44" height="44" rx="12"
@@ -126,12 +165,29 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
                 <IconComp size={22} color={isGlowing ? statusColor : "#666"} strokeWidth={2.5} />
               </foreignObject>
 
+              {/* Objective Met Badge */}
+              {!isPending && (
+                <g transform={`translate(${pos.x + 18}, ${pos.y - 18})`}>
+                  <circle 
+                    r="6" 
+                    fill={audit.objectiveMet ? "#10b981" : "#f59e0b"} 
+                    stroke="white" 
+                    strokeWidth="1.5" 
+                  />
+                  <foreignObject x="-3.5" y="-3.5" width="7" height="7">
+                    <div style={{ color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {audit.objectiveMet ? <CheckCircle2 size={6} strokeWidth={4} /> : <AlertTriangle size={6} strokeWidth={4} />}
+                    </div>
+                  </foreignObject>
+                </g>
+              )}
+
               {/* Label below */}
               <g transform={`translate(${pos.x}, ${pos.y + 35})`}>
                 <text textAnchor="middle" fontSize="9" fill="white" fontWeight="bold" opacity="0.8">{SNYDER_BEATS[i].title}</text>
                 <text textAnchor="middle" y="12" fontSize="7" fill={statusColor} fontWeight="bold" opacity="0.9">{audit.status}</text>
               </g>
-            </g>
+            </motion.g>
           );
         })}
       </svg>
@@ -139,7 +195,7 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
   );
 };
 
-const ScriptDoctorAudit = ({ auditData }) => {
+const ScriptDoctorAudit = ({ auditData, onNavigateToStep }) => {
   return (
     <div className="script-doctor-table" style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '1rem', border: '1px solid var(--glass-border)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -154,7 +210,11 @@ const ScriptDoctorAudit = ({ auditData }) => {
         </thead>
         <tbody>
           {auditData.map((row, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <tr 
+              key={i} 
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}
+              onClick={() => onNavigateToStep(i)}
+            >
               <td style={{ padding: '12px', fontWeight: 'bold' }}>{i + 1}. {row.title}</td>
               <td style={{ padding: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -167,7 +227,7 @@ const ScriptDoctorAudit = ({ auditData }) => {
               <td style={{ padding: '12px' }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>{row.sentiment.icon}</span>
-                    <span style={{ fontSize: '11px opacity: 0.8' }}>{row.sentiment.label}</span>
+                    <span style={{ fontSize: '11px', opacity: 0.8 }}>{row.sentiment.label}</span>
                  </div>
               </td>
               <td style={{ padding: '12px' }}>
@@ -180,6 +240,18 @@ const ScriptDoctorAudit = ({ auditData }) => {
                     {row.status}
                  </div>
               </td>
+              {/* New Cumplimiento column */}
+              <td style={{ padding: '12px' }}>
+                {row.status !== 'PENDIENTE' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 'bold' }}>
+                    {row.objectiveMet ? (
+                      <span style={{ color: '#10b981' }}><CheckCircle2 size={12} /> CUMPLIDO</span>
+                    ) : (
+                      <span style={{ color: '#f59e0b' }}><AlertTriangle size={12} /> DESVIADO</span>
+                    )}
+                  </div>
+                )}
+              </td>
               <td style={{ padding: '12px', fontSize: '11px', color: 'var(--text-secondary)' }}>{row.promise}</td>
             </tr>
           ))}
@@ -189,7 +261,7 @@ const ScriptDoctorAudit = ({ auditData }) => {
   );
 };
 
-export default function StoryBoard({ universeId }) {
+export default function StoryBoard({ universeId, onNavigateToStep }) {
   const [selectedCharId, setSelectedCharId] = useState(null);
   const [localSummaries, setLocalSummaries] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -203,33 +275,63 @@ export default function StoryBoard({ universeId }) {
   }, [staircaseData]);
 
   const auditData = useMemo(() => {
-    if (!selectedCharId) return SNYDER_BEATS.map(beat => ({ title: beat.title, intensity: 0, sentiment: { icon: "🕊️", label: "Vulnerabilidad" }, status: "PENDIENTE", promise: "Selecciona un personaje." }));
+    if (!steps || !selectedCharId) return [];
+    const char = characters.find(c => c.id === selectedCharId);
+    if (!char) return [];
+
+    const charName = char.name.toLowerCase();
     
-    const selectedChar = characters.find(c => c.id === selectedCharId);
-    const charName = selectedChar?.name?.toLowerCase() || '';
+    // Keyword map for structural relevance (Snyder Objectives)
+    const objectiveKeywords = {
+      "Imagen Inicial": ['tono', 'mundo', 'atmósfera', 'presenta', 'rutina', 'inicio'],
+      "Tema": ['tema', 'trata', 'lección', 'mensaje', 'verdad', 'aprende'],
+      "Planteamiento": ['protagonista', 'carencia', 'necesita', 'statu', 'vida'],
+      "Catalizador": ['cambio', 'evento', 'sucede', 'inesperado', 'llamada', 'incidente'],
+      "Debate": ['duda', 'miedo', 'resiste', 'niega', 'debate', 'incertidumbre', 'teme'],
+      "Paso al Acto 2": ['decisión', 'decide', 'elige', 'cruza', 'actúa', 'compromiso', 'viaje'],
+      "Trama B": ['amor', 'amistad', 'subtrama', 'relación', 'aliado', 'mentor', 'sentimiento'],
+      "Juegos y Risas": ['diversión', 'promesa', 'premisa', 'acción', 'entretenimiento', 'aventura'],
+      "Punto Medio": ['pico', 'derrota', 'giro', 'estacas', 'sube', 'falso', 'medio'],
+      "Cerco": ['presión', 'cerco', 'enemigos', 'conflicto', 'interno', 'fuerzas'],
+      "Perdido": ['muere', 'derrota', 'fondo', 'fracaso', 'pérdida', 'esperanza', 'triste'],
+      "Alma": ['reflexiona', 'lamenta', 'duelo', 'epifanía', 'cambio', 'interior', 'oscuro'],
+      "Acto 3": ['solución', 'plan', 'lección', 'une', 'integra', 'camino', 'final'],
+      "Final": ['derrota', 'clímax', 'victoria', 'resolución', 'cambio', 'vence', 'acaba'],
+      "Imagen Final": ['espejo', 'nuevo', 'resolución', 'transformado', 'final', 'eco']
+    };
 
     return SNYDER_BEATS.map((beat, i) => {
       const summary = steps[i]?.charSummaries?.[selectedCharId] || '';
       const content = steps[i]?.content || '';
       
-      // Smart detection: check if char is in the summary OR mentioned in the master script
       const isMentionedInMaster = content.toLowerCase().includes(charName) || content.toLowerCase().includes(`@${charName}`);
       const hasSpecificSummary = summary.trim().length > 3;
-      
       const combined = (summary + content).toLowerCase();
       
-      // NEW: Death detection keywords
       const deathKeywords = ['muere', 'muerto', 'muerta', 'muerte', 'asesinado', 'asesinada', 'fallece', 'liquida', 'eliminado', 'ejecutado'];
       const isDeadState = deathKeywords.some(key => combined.includes(key)) && (hasSpecificSummary || isMentionedInMaster);
 
       const intensity = Math.min(Math.floor((combined.length / 50) * 20) + (combined.includes('!') ? 20 : 0), 100);
       
-      let sentiment = { icon: "🕊️", label: "Vulnerabilidad" };
-      if (isDeadState) sentiment = { icon: "💀", label: "Final de Arco" };
-      else if (intensity > 70) sentiment = { icon: "🌑", label: "Caos / Tensión" };
-      else if (combined.includes('decide')) sentiment = { icon: "⚖️", label: "Resolución" };
+      let sentiment = { icon: "🕊️", label: "Vulnerabilidad", color: "#a78bfa" }; // Violet
       
-      let promise = "Narrativa pendiente.";
+      if (isDeadState) {
+        sentiment = { icon: "💀", label: "Final de Arco", color: "#ef4444" };
+      } else if (combined.includes('victoria') || combined.includes('gana') || combined.includes('logra') || combined.includes('salva') || combined.includes('tesoro')) {
+        sentiment = { icon: "👑", label: "Triunfo / Éxito", color: "#fbbf24" }; // Gold
+      } else if (combined.includes('paz') || combined.includes('hogar') || combined.includes('descansa') || combined.includes('tranquilo')) {
+        sentiment = { icon: "🌿", label: "Paz / Equilibrio", color: "#2dd4bf" }; // Teal
+      } else if (intensity > 70 || combined.includes('guerra') || combined.includes('caos') || combined.includes('tensión')) {
+        sentiment = { icon: "🌑", label: "Caos / Tensión", color: "#f87171" }; // Reddish
+      } else if (combined.includes('decide') || combined.includes('elige') || combined.includes('promesa')) {
+        sentiment = { icon: "⚖️", label: "Resolución", color: "#60a5fa" }; // Blue
+      }
+      
+      // Objective verification
+      const beatKeywords = objectiveKeywords[beat.title] || [];
+      const objectiveMet = beatKeywords.some(key => combined.includes(key));
+
+      let promise = objectiveMet ? "Objetivo estructural cumplido." : "Objetivo estructural no detectado claramente.";
       let status = "PENDIENTE";
 
       if (isDeadState) {
@@ -237,13 +339,11 @@ export default function StoryBoard({ universeId }) {
         promise = "El personaje ha fallecido en este hito.";
       } else if (hasSpecificSummary) {
         status = "EXITOSO";
-        promise = "Coherente con el arco.";
       } else if (isMentionedInMaster) {
         status = "DÉBIL";
-        promise = "Mencionado en el guion maestro.";
       }
 
-      return { title: beat.title, intensity, sentiment, status, promise };
+      return { title: beat.title, intensity, sentiment, status, promise, objectiveMet };
     });
   }, [steps, selectedCharId, characters]);
 
@@ -367,22 +467,34 @@ export default function StoryBoard({ universeId }) {
              </div>
            ) : (
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {viewMode === 'canvas' ? (
-                   <EvolutionCanvas steps={steps} selectedCharId={selectedCharId} auditData={auditData} onNodeClick={(idx) => document.getElementById(`editor-${idx}`).scrollIntoView({ behavior: 'smooth' })} />
-                ) : (
-                   <ScriptDoctorAudit auditData={auditData} />
-                )}
+                 {viewMode === 'canvas' ? (
+                    <EvolutionCanvas auditData={auditData} onNodeClick={(idx) => onNavigateToStep(idx, selectedCharId)} />
+                 ) : (
+                    <ScriptDoctorAudit auditData={auditData} onNavigateToStep={(idx) => onNavigateToStep(idx, selectedCharId)} />
+                 )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                    {SNYDER_BEATS.map((beat, i) => (
                      <div key={i} id={`editor-${i}`} className="glass" style={{ padding: '1.2rem', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <beat.icon size={18} color="var(--accent)" />
-                              <h4 style={{ fontSize: '1.1rem' }}>{i + 1}. {beat.title}</h4>
-                           </div>
-                           <span style={{ fontSize: '10px', opacity: 0.4 }}>{beat.objective}</span>
-                        </div>
+                         <div 
+                           onClick={() => onNavigateToStep(i, selectedCharId)}
+                           style={{ 
+                             display: 'flex', 
+                             justifyContent: 'space-between', 
+                             marginBottom: '1rem', 
+                             cursor: 'pointer',
+                             padding: '4px',
+                             borderRadius: '8px',
+                             transition: 'all 0.2s ease'
+                           }}
+                           className="hover-bright-subtle"
+                         >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                               <beat.icon size={18} color="var(--accent)" />
+                               <h4 style={{ fontSize: '1.1rem' }}>{i + 1}. {beat.title}</h4>
+                            </div>
+                            <span style={{ fontSize: '10px', opacity: 0.4 }}>{beat.objective}</span>
+                         </div>
                         <textarea 
                           value={localSummaries[i] || ''} onChange={(e) => setLocalSummaries({...localSummaries, [i]: e.target.value})}
                           placeholder="Resume la evolución en este hito..."

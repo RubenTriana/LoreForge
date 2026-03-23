@@ -25,8 +25,8 @@ const SNYDER_BEATS = [
   { title: "Imagen Final", objective: "El espejo de la imagen inicial, mostrando el cambio total." }
 ];
 
-export default function EventStaircase({ universeId }) {
-  const [selectedStep, setSelectedStep] = useState(0);
+export default function EventStaircase({ universeId, initialStep = 0, highlightCharId = null }) {
+  const [selectedStep, setSelectedStep] = useState(initialStep);
   const [editingContent, setEditingContent] = useState("");
   const [involvedIds, setInvolvedIds] = useState([]);
   const [showCastPanel, setShowCastPanel] = useState(false);
@@ -34,6 +34,13 @@ export default function EventStaircase({ universeId }) {
 
   const characters = useLiveQuery(() => db.characters.where({ universeId }).toArray()) || [];
   const staircaseData = useLiveQuery(() => db.staircase.where({ universeId }).first(), [universeId]);
+
+  useEffect(() => {
+    setSelectedStep(initialStep);
+    if (highlightCharId) {
+      setShowCastPanel(true);
+    }
+  }, [initialStep, highlightCharId]);
 
   useEffect(() => {
     if (staircaseData) {
@@ -165,8 +172,22 @@ export default function EventStaircase({ universeId }) {
              <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Users size={16} color="var(--accent)" /> Integrantes del Elenco</h4>
              <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {characters.map(char => (
-                   <div key={char.id} className="glass" style={{ padding: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px' }}>{char.name}</span>
+                   <div 
+                     key={char.id} 
+                     className="glass" 
+                     style={{ 
+                       padding: '10px', 
+                       borderRadius: '8px', 
+                       display: 'flex', 
+                       justifyContent: 'space-between', 
+                       alignItems: 'center',
+                       border: char.id === highlightCharId ? '1px solid var(--accent)' : '1px solid transparent',
+                       background: char.id === highlightCharId ? 'rgba(var(--accent-rgb), 0.1)' : 'rgba(255,255,255,0.03)'
+                     }}
+                   >
+                      <span style={{ fontSize: '12px', color: char.id === highlightCharId ? 'var(--accent)' : 'white', fontWeight: char.id === highlightCharId ? 'bold' : 'normal' }}>
+                        {char.name}
+                      </span>
                       <button onClick={() => toggleCharacterInvolvement(char.id)} style={{ background: 'transparent', border: 'none', color: involvedIds.includes(char.id) ? 'var(--accent)' : 'rgba(255,255,255,0.3)' }}>
                          <CheckCircle2 size={16} />
                       </button>
