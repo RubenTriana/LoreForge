@@ -10,6 +10,7 @@ import ObjectManager from './components/ObjectManager';
 import WorldManager from './components/WorldManager';
 import MapRoutes from './components/MapRoutes';
 import EventStaircase from './components/EventStaircase';
+import NexusDashboard from './components/NexusDashboard';
 import { 
   Users, 
   Globe, 
@@ -53,12 +54,10 @@ function App() {
   };
 
   // Dynamic Nav Items with persistence
-  // ... (rest of logic)
   const [navItems, setNavItems] = useState(() => {
     const saved = localStorage.getItem('loreforge-nav-order');
     if (saved) {
       const savedIds = JSON.parse(saved);
-      // Map back to components to ensure icons are correctly referenced
       return savedIds.map(id => DEFAULT_NAV_ITEMS.find(item => item.id === id)).filter(Boolean);
     }
     return DEFAULT_NAV_ITEMS;
@@ -84,6 +83,34 @@ function App() {
         setUniverses(await db.universes.toArray());
       } else {
         setUniverses(all);
+      }
+
+      // Seed Dummy Token Logs if empty
+      const logCount = await db.token_logs.count();
+      if (logCount === 0) {
+        const modules = ['Personajes', 'Lore', 'Escribanía', 'Análisis'];
+        const actions = ['Generación de Retrato', 'Extracción de Lore', 'Escritura de Capítulo', 'Análisis de Sentimiento'];
+        const dummyLogs = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          const callsToday = Math.floor(Math.random() * 5) + 2;
+          for (let j = 0; j < callsToday; j++) {
+            const mod = modules[Math.floor(Math.random() * modules.length)];
+            const act = actions[Math.floor(Math.random() * actions.length)];
+            const pTokens = Math.floor(Math.random() * 2000) + 500;
+            const cTokens = Math.floor(Math.random() * 1000) + 200;
+            dummyLogs.push({
+              timestamp: date.toISOString(),
+              module: mod,
+              action: act,
+              promptTokens: pTokens,
+              completionTokens: cTokens,
+              cost: (pTokens / 1_000_000) * 0.5 + (cTokens / 1_000_000) * 1.5
+            });
+          }
+        }
+        await db.token_logs.bulkAdd(dummyLogs);
       }
     };
     init();
@@ -151,37 +178,12 @@ function App() {
 
         <div className="view-container">
           {activeTab === 'dashboard' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-              <div className="card glass">
-                <h3 style={{ marginBottom: '1rem' }}>Resumen del Universo</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                  {universes[0]?.description}
-                </p>
-              </div>
-              <div className="card glass">
-                <h3 style={{ marginBottom: '1rem' }}>Estadísticas</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Personajes</span>
-                    <span style={{ color: 'var(--accent)' }}>{charCount}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Eventos</span>
-                    <span style={{ color: 'var(--accent)' }}>{eventCount}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Localizaciones</span>
-                    <span style={{ color: 'var(--accent)' }}>{locationCount}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <NexusDashboard universeId={universes[0]?.id} />
           )}
           
           {activeTab === 'characters' && (
             <CharacterManager universeId={universes[0]?.id} />
           )}
-
 
           {activeTab === 'drafts' && (
             <DraftManager universeId={universes[0]?.id} />
@@ -209,7 +211,6 @@ function App() {
               highlightCharId={staircaseHighlightCharId}
             />
           )}
-
 
           {activeTab === 'routes' && (
             <MapRoutes universeId={universes[0]?.id} />
