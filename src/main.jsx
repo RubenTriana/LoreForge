@@ -7,7 +7,7 @@ import { seedStaircaseData } from './seedStaircase.js'
 import { db } from './db/db.js'
 
 const init = async () => {
-  const universe = await db.universes.first();
+  const universe = await db.universes.toCollection().first();
   if (universe) {
     const existing = await db.staircase.where({ universeId: universe.id }).first();
     if (!existing) {

@@ -32,8 +32,8 @@ import './index.css';
 const DEFAULT_NAV_ITEMS = [
   { id: 'dashboard', label: 'Nexus', icon: LayoutDashboard },
   { id: 'characters', label: 'Población', icon: Users },
-  { id: 'world', label: 'Mundo (Lore)', icon: Globe },
-  { id: 'staircase', label: 'Escalera (Salva al Gato)', icon: Activity },
+  { id: 'world', label: 'Lore', icon: Globe },
+  { id: 'staircase', label: 'Escaleta', icon: Activity },
   { id: 'objects', label: 'Inventario', icon: Package },
   { id: 'board', label: 'Evolución', icon: TrendingUp },
   { id: 'routes', label: 'Cartografía', icon: Map },
