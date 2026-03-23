@@ -2,15 +2,43 @@ import React, { useState, useRef } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, Trash2, Edit2, X, Check, Image as ImageIcon, Heart, Zap, Ghost, Camera } from 'lucide-react';
+import { UserPlus, Trash2, Edit2, X, Check, Image as ImageIcon, Heart, Zap, Ghost, Camera, MoreVertical } from 'lucide-react';
+
+// Helper component for dropdown items
+const DropdownItem = ({ icon, label, onClick, color = 'white' }) => (
+  <button
+    onClick={onClick}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      width: '100%',
+      padding: '10px 12px',
+      borderRadius: '10px',
+      background: 'none',
+      border: 'none',
+      color: color,
+      fontSize: '0.9rem',
+      cursor: 'pointer',
+      textAlign: 'left',
+      transition: 'background 0.2s',
+    }}
+    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
 
 export default function CharacterManager({ universeId }) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [activeDropdownId, setActiveDropdownId] = useState(null); // Menu Dropdown state
   const fileInputRefs = useRef({}); // Store refs for each character card
 
-  const [formData, setFormData] = useState({ 
-    name: '', role: '', description: '', imageUrl: '', physical: '', psychological: '', spiritual: '' 
+  const [formData, setFormData] = useState({
+    name: '', role: '', description: '', imageUrl: '', physical: '', psychological: '', spiritual: ''
   });
 
   const characters = useLiveQuery(
@@ -48,9 +76,9 @@ export default function CharacterManager({ universeId }) {
   };
 
   const handleEdit = (char) => {
-    setFormData({ 
-      name: char.name, role: char.role, description: char.description, 
-      imageUrl: char.imageUrl || '', physical: char.physical || '', 
+    setFormData({
+      name: char.name, role: char.role, description: char.description,
+      imageUrl: char.imageUrl || '', physical: char.physical || '',
       psychological: char.psychological || '', spiritual: char.spiritual || ''
     });
     setEditingId(char.id);
@@ -80,26 +108,26 @@ export default function CharacterManager({ universeId }) {
             <h3 style={{ fontSize: '1.5rem' }}>{editingId ? 'Refinar Perfil' : 'Dar Vida a un Personaje'}</h3>
             <button type="button" onClick={() => { setIsAdding(false); setEditingId(null); }} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}><X size={24} /></button>
           </div>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 1fr', gap: '2rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
               <input placeholder="Nombre Completo" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required style={{ padding: '15px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', color: 'white' }} />
               <input placeholder="Rol en la Historia (Protagonista, Villano...)" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', color: 'white' }} />
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div onClick={() => {
                   const el = document.getElementById('mainFileInput');
                   if (el) el.click();
-                }} style={{ 
+                }} style={{
                   borderRadius: '16px', width: '100%', aspectRatio: '2/3', cursor: 'pointer', overflow: 'hidden', position: 'relative',
                   border: '2px dashed var(--glass-border)', background: 'rgba(124,58,237,0.05)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s'
                 }}>
                   {formData.imageUrl && (
-                    <img 
-                      src={formData.imageUrl} 
-                      alt="Vista previa" 
-                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} 
+                    <img
+                      src={formData.imageUrl}
+                      alt="Vista previa"
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
                     />
                   )}
                   {formData.imageUrl && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }} />}
@@ -135,71 +163,105 @@ export default function CharacterManager({ universeId }) {
       {/* Grid de Personajes */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '2rem' }}>
         {characters?.map(char => (
-          <motion.div 
-            key={char.id} 
+          <motion.div
+            key={char.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card glass" 
-            style={{ display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden', borderRadius: '24px', border: '1px solid var(--glass-border)', transition: 'all 0.3s' }}
+            className="card glass"
+            style={{ display: 'flex', flexDirection: 'column', padding: '0', overflow: 'visible', borderRadius: '24px', border: '1px solid var(--glass-border)', transition: 'all 0.3s', position: 'relative' }}
           >
             {/* Cabecera / Imagen con Aspect Ratio Fijo 2:3 */}
-            <div style={{ position: 'relative', width: '100%', aspectRatio: '2/3', background: 'var(--bg-dark)', overflow: 'hidden' }}>
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '2/3', background: 'var(--bg-dark)', overflow: 'hidden', borderTopLeftRadius: '24px', borderTopRightRadius: '24px' }}>
                {char.imageUrl && (
-                 <img 
-                   src={char.imageUrl} 
-                   alt={char.name} 
-                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} 
+                 <img
+                   src={char.imageUrl}
+                   alt={char.name}
+                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
                  />
                )}
                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.1) 40%, transparent 100%)' }} />
-               
+
                {!char.imageUrl && (
                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', opacity: 0.5 }}>
                    <ImageIcon size={64} />
                  </div>
                )}
 
-               <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
-                {/* Botón de Carga Rápida de Imagen */}
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  style={{ display: 'none' }} 
-                  ref={el => { if (el) fileInputRefs.current[char.id] = el; }}
-                  onChange={(e) => handleFileChange(e, char.id)}
-                />
-                <button 
-                  onClick={() => {
-                    const ref = fileInputRefs.current[char.id];
-                    if (ref) ref.click();
-                  }} 
-                  title="Cambiar Retrato"
-                  style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px', borderRadius: '12px', cursor: 'pointer' }}
-                >
-                  <Camera size={18} />
-                </button>
-                <button 
-                  onClick={() => handleEdit(char)} 
-                  title="Editar Detalles"
-                  style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px', borderRadius: '12px', cursor: 'pointer' }}
-                >
-                  <Edit2 size={18} />
-                </button>
-                <button 
-                  onClick={() => handleDelete(char.id)} 
-                  title="Eliminar"
-                  style={{ background: 'rgba(239,68,68,0.2)', backdropFilter: 'blur(10px)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: '10px', borderRadius: '12px', cursor: 'pointer' }}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
+               {/* Trigger para el Menú Dropdown (⋮) */}
+               <div style={{ position: 'absolute', top: '15px', right: '15px', zIndex: 100 }}>
+                 <button
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     setActiveDropdownId(activeDropdownId === char.id ? null : char.id);
+                   }}
+                   style={{
+                     background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)',
+                     border: '1px solid rgba(255,255,255,0.2)', color: 'white',
+                     width: '40px', height: '40px', borderRadius: '12px',
+                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                     transition: 'all 0.2s'
+                   }}
+                 >
+                   <MoreVertical size={20} />
+                 </button>
 
-              <div style={{ position: 'absolute', bottom: '20px', left: '25px', right: '25px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px' }}>{char.role || 'Habitante'}</span>
-                <h4 style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: '5px 0' }}>{char.name}</h4>
-              </div>
+                 {/* Hidden File Input - Must be always present to avoid unmounting issues */}
+                 <input 
+                   type="file" accept="image/*" style={{ display: 'none' }} 
+                   ref={el => { if (el) fileInputRefs.current[char.id] = el; }}
+                   onChange={(e) => handleFileChange(e, char.id)}
+                 />
+
+                 <AnimatePresence>
+                   {activeDropdownId === char.id && (
+                     <>
+                       {/* Transparent Backdrop to close on click outside */}
+                       <div 
+                         onClick={() => setActiveDropdownId(null)} 
+                         style={{ position: 'fixed', inset: 0, zIndex: 90 }} 
+                       />
+                       
+                       <motion.div
+                         initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                         animate={{ opacity: 1, scale: 1, y: 0 }}
+                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                         style={{ 
+                           position: 'absolute', top: '50px', right: '0', 
+                           background: 'rgba(15, 15, 20, 0.95)', backdropFilter: 'blur(20px)',
+                           border: '1px solid var(--glass-border)', borderRadius: '16px', 
+                           padding: '8px', minWidth: '180px', zIndex: 110,
+                           boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                         }}
+                       >
+                         <DropdownItem 
+                           icon={<Camera size={16} />} 
+                           label="Cambiar Retrato" 
+                           onClick={() => { fileInputRefs.current[char.id]?.click(); setActiveDropdownId(null); }} 
+                         />
+                         <DropdownItem 
+                           icon={<Edit2 size={16} />} 
+                           label="Editar Detalles" 
+                           onClick={() => { handleEdit(char); setActiveDropdownId(null); }} 
+                         />
+                         <div style={{ height: '1px', background: 'var(--glass-border)', margin: '4px 8px' }} />
+                         <DropdownItem 
+                           icon={<Trash2 size={16} />} 
+                           label="Eliminar" 
+                           color="#ef4444"
+                           onClick={() => { handleDelete(char.id); setActiveDropdownId(null); }} 
+                         />
+                       </motion.div>
+                     </>
+                   )}
+                 </AnimatePresence>
+               </div>
+
+               <div style={{ position: 'absolute', bottom: '20px', left: '25px', right: '25px' }}>
+                 <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px' }}>{char.role || 'Habitante'}</span>
+                 <h4 style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: '5px 0' }}>{char.name}</h4>
+               </div>
             </div>
-            
+
             {/* Cuerpo de la Tarjeta */}
             <div style={{ padding: '1.5rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '1.5rem' }}>
