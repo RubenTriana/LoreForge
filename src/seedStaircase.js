@@ -23,8 +23,15 @@ export async function seedStaircaseData(universeId) {
     }
   }
 
-  // 2. Define first 5 Steps of Snyder with narratives and char summaries
-  const steps = [
+  // 2. Define first 15 Steps of Snyder with narratives and char summaries
+  const snidertitles = [
+    "Imagen Inicial", "Declaración del Tema", "Planteamiento", "Catalizador", "Debate",
+    "Paso al Acto 2", "Trama Secundaria", "Juegos y Diversión", "Punto de Giro Central",
+    "Los Villanos Estrechan el Cerco", "Todo está Perdido", "La Noche Oscura del Alma",
+    "Paso al Acto 3", "Final", "Imagen Final"
+  ];
+
+  const stepsData = [
     {
       title: "Imagen Inicial",
       content: "Vemos a @Alys Thorne en el pacífico pueblo de Valleverde, ajena al poder que duerme en su sangre. @Kaelen la observa desde los riscos.",
@@ -69,14 +76,18 @@ export async function seedStaircaseData(universeId) {
     }
   ];
 
-  // Fill the rest of the 15 steps with empty format to avoid crashes
-  const fullSteps = [...steps];
-  for (let i = 5; i < 15; i++) {
-    fullSteps.push({ content: '', characterIds: [], charSummaries: {} });
-  }
-
-  await db.staircase.add({
-    universeId,
-    steps: JSON.stringify(fullSteps)
+  // Map to individual records for the normalized table
+  const finalSteps = snidertitles.map((title, index) => {
+    const existingData = stepsData[index] || {};
+    return {
+      universeId,
+      stepNumber: index + 1,
+      title: existingData.title || title,
+      content: existingData.content || '',
+      characterIds: existingData.characterIds || [],
+      charSummaries: existingData.charSummaries || {}
+    };
   });
+
+  await db.staircase.bulkAdd(finalSteps);
 }

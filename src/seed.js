@@ -44,4 +44,23 @@ async function seedLore() {
   }
 }
 
-seedLore();
+async function seedSettings() {
+  const settingsCount = await db.settings.count();
+  if (settingsCount === 0) {
+    await db.settings.add({
+      provider: 'openai',
+      apiKey: '',
+      defaultModel: 'gpt-4o',
+      temperature: 0.7,
+      systemRole: ''
+    });
+    console.log("Configuración inicial de IA sembrada.");
+  }
+}
+
+async function runSeeds() {
+  await seedLore();
+  await seedSettings();
+}
+
+runSeeds();

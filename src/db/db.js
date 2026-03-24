@@ -2,7 +2,7 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('LoreForgeDB');
 
-db.version(8).stores({
+db.version(9).stores({
   universes: '++id, name, genre, description, lore',
   characters: '++id, name, role, description, imageUrl, physical, psychological, spiritual, universeId',
   events: '++id, title, date, description, universeId',
@@ -12,8 +12,9 @@ db.version(8).stores({
   arcs: '++id, characterId, eventId, physicalChange, psychoChange, spiritualChange, universeId',
   missions: '++id, title, description, characterId, status, universeId',
   routes: '++id, name, points, mapImageUrl, lineStyle, lineColor, universeId',
-  staircase: '++id, universeId, steps',
-  token_logs: '++id, timestamp, module, promptTokens, completionTokens, cost, action'
+  staircase: '++id, universeId, stepNumber, title, content',
+  token_logs: '++id, timestamp, module, promptTokens, completionTokens, cost, action',
+  settings: '++id, provider, apiKey, defaultModel, temperature, systemRole'
 });
 
 export default db;
