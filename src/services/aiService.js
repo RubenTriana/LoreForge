@@ -25,23 +25,22 @@ export async function analyzeWithScriptDoctor(stepTitle, stepContent, universeId
 
   // 3. Preparar el prompt estructurado
   const mainInstruction = `
-    Eres un Script Doctor experto en la estructura narrativa de Blake Snyder. 
-    Analiza este fragmento del hito '${stepTitle}'.
+    Eres un Script Doctor experto. Analiza este hito: '${stepTitle}'.
     
-    OBJETIVO DE LA ETAPA: "${stepObjective}"
-    CONTENIDO A ANALIZAR: "${stepContent}"
+    OBJETIVO: "${stepObjective}"
+    CONTENIDO: "${stepContent}"
     
     ${loreContext}
     
     TAREA:
-    1. Evalúa en qué porcentaje (0-100) el contenido cumple con el OBJETIVO DE LA ETAPA y respeta el LORE del universo.
-    2. Proporciona un breve análisis (feedback).
-    3. Ofrece sugerencias de mejora (máximo 100 palabras en total) que ayuden a alcanzar el objetivo.
+    1. Evalúa cumplimiento del OBJETIVO y LORE (0-100).
+    2. Proporciona un feedback BREVE (MÁXIMO 100 CARACTERES).
+    3. Sugiere una mejora corta.
 
-    IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido con este formato:
+    Responde ÚNICAMENTE en JSON:
     {
       "score": number,
-      "feedback": "string",
+      "feedback": "string (máx 100 caracteres)",
       "suggestions": "string"
     }
   `;
@@ -59,7 +58,7 @@ export async function analyzeWithScriptDoctor(stepTitle, stepContent, universeId
     let rawText = '';
     switch (provider) {
       case 'openai':
-        const oaResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        const oaResponse = await fetch('/api-openai/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -84,7 +83,7 @@ export async function analyzeWithScriptDoctor(stepTitle, stepContent, universeId
         break;
 
       case 'anthropic':
-        const antResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        const antResponse = await fetch('/api-anthropic/v1/messages', {
           method: 'POST',
           headers: {
             'x-api-key': apiKey,
@@ -109,23 +108,30 @@ export async function analyzeWithScriptDoctor(stepTitle, stepContent, universeId
         break;
 
       case 'gemini':
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const geminiUrl = `/api-gemini/v1beta/models/gemini-flash-latest:generateContent`;
         const gemResponse = await fetch(geminiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
           body: JSON.stringify({
             contents: [{
               parts: [{ text: fullSystemPrompt + "\nResponde solo en JSON." }]
             }],
             generationConfig: {
               temperature: temperature || 0.7,
-              maxOutputTokens: 1024,
-              responseMimeType: "application/json"
+              maxOutputTokens: 1024
             }
           })
         });
 
-        if (!gemResponse.ok) throw new Error(`Gemini Error: ${gemResponse.statusText}`);
+        if (!gemResponse.ok) {
+          const errorData = await gemResponse.json().catch(() => ({}));
+          const errMsg = errorData.error?.message || gemResponse.statusText || "Bad Request";
+          console.error("Gemini Error Detail:", errorData);
+          throw new Error(`Gemini Error: ${errMsg}`);
+        }
         const gemData = await gemResponse.json();
         rawText = gemData.candidates[0].content.parts[0].text;
         responseData.promptTokens = gemData.usageMetadata?.promptTokenCount || Math.floor(fullSystemPrompt.length / 4);
@@ -136,9 +142,15 @@ export async function analyzeWithScriptDoctor(stepTitle, stepContent, universeId
         throw new Error(`Proveedor no soportado: ${provider}`);
     }
 
-    // Intentar parsear el JSON
+    // Función para limpiar el texto de respuesta, eliminando bloques de código markdown
+    const cleanJson = (text) => {
+      const match = text.match(/```json\s?([\s\S]*?)\s?```/);
+      return match ? match[1].trim() : text.trim();
+    };
+
+    // Intentar parsear el JSON después de limpiar el texto
     try {
-      responseData.analysis = JSON.parse(rawText);
+      responseData.analysis = JSON.parse(cleanJson(rawText));
       responseData.text = responseData.analysis.suggestions; // Por retrocompatibilidad si es necesario
     } catch (e) {
       console.warn("Error parseando respuesta JSON de IA:", rawText);

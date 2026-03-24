@@ -35,28 +35,39 @@ export default function MapRoutes() {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
 
-  const savedRoute = useLiveQuery(() => universeId ? db.routes.where({ universeId }).first() : null, [universeId]);
+  const savedRoute = useLiveQuery(
+    () => universeId ? db.routes.where('universeId').equals(Number(universeId)).first() : null, 
+    [universeId]
+  );
   const locations = useLiveQuery(
     () => universeId ? db.locations.where('universeId').equals(Number(universeId)).toArray() : [],
     [universeId]
   ) || [];
   
   const staircaseSteps = useLiveQuery(
-    () => universeId ? db.staircase.where({ universeId }).sortBy('stepNumber') : [],
+    () => universeId ? db.staircase.where('universeId').equals(Number(universeId)).sortBy('stepNumber') : [],
     [universeId]
   ) || [];
 
   useEffect(() => {
     if (savedRoute) {
-      setPoints(JSON.parse(savedRoute.points || '[]'));
-      setMapImageUrl(savedRoute.mapImageUrl);
-      if (savedRoute.lineStyle) setLineStyle(savedRoute.lineStyle);
-      if (savedRoute.lineColor) setLineColor(savedRoute.lineColor);
+      try {
+        setPoints(JSON.parse(savedRoute.points || '[]'));
+        setMapImageUrl(savedRoute.mapImageUrl);
+        if (savedRoute.lineStyle && LINE_STYLES[savedRoute.lineStyle]) {
+          setLineStyle(savedRoute.lineStyle);
+        }
+        if (savedRoute.lineColor) setLineColor(savedRoute.lineColor);
+      } catch (err) {
+        console.error("Error loading route data:", err);
+        setPoints([]);
+      }
     }
   }, [savedRoute]);
 
   const saveRoute = async (newPoints, newMapUrl, newLineStyle, newLineColor) => {
-    const existing = await db.routes.where({ universeId }).first();
+    if (!universeId) return;
+    const existing = await db.routes.where('universeId').equals(Number(universeId)).first();
     const data = {
       universeId,
       name: 'Ruta Principal',
@@ -188,7 +199,8 @@ export default function MapRoutes() {
         ctx.beginPath();
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 4;
-        ctx.setLineDash(LINE_STYLES[lineStyle].dash);
+        const currentStyle = LINE_STYLES[lineStyle] || LINE_STYLES.solid;
+        ctx.setLineDash(currentStyle.dash);
         ctx.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) {
           ctx.lineTo(points[i].x, points[i].y);
@@ -371,7 +383,7 @@ export default function MapRoutes() {
             <h4 style={{ fontSize: '0.9rem' }}>Itinerario</h4>
             {points.map((p, i) => (
               <div key={p.id} className="glass" style={{ padding: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                <span>{i+1}. {NODE_TYPES[p.type || 'generic'].label}</span>
+                <span>{i+1}. {NODE_TYPES[p.type]?.label || 'Punto'}</span>
                 <button onClick={() => setSelectedPointId(p.id)} style={{ color: 'var(--accent)', background: 'transparent', border: 'none' }}><Settings2 size={14}/></button>
               </div>
             ))}

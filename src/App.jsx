@@ -12,6 +12,7 @@ import MapRoutes from './components/MapRoutes';
 import EventStaircase from './components/EventStaircase';
 import NexusDashboard from './components/NexusDashboard';
 import SettingsPanel from './components/SettingsPanel';
+import AiStatusMonitor from './components/AiStatusMonitor';
 import { useUiStore } from './store/uiStore';
 import { 
   Users, 
@@ -43,6 +44,32 @@ const DEFAULT_NAV_ITEMS = [
   { id: 'routes', label: 'Cartografía', icon: Map },
   { id: 'drafts', label: 'Escribanía', icon: FileText },
 ];
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="card glass" style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2 style={{ color: '#ef4444', marginBottom: '1rem' }}>ALGO SALIÓ MAL</h2>
+          <p style={{ color: 'var(--text-secondary)' }}>Hubo un error al cargar este módulo.</p>
+          <button 
+            className="glass" 
+            style={{ marginTop: '1rem', padding: '8px 16px', color: 'white' }}
+            onClick={() => window.location.reload()}
+          >
+            Reintentar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function App() {
   const { currentView, setView, activeUniverseId, setActiveUniverseId, toggleSettingsModal } = useUiStore();
@@ -127,6 +154,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <AiStatusMonitor />
       <nav className="sidebar glass" style={{ display: 'flex', flexDirection: 'column' }}>
         <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2rem' }}>
           <Compass color="var(--accent)" size={32} />
@@ -251,7 +279,9 @@ function App() {
           )}
 
           {currentView === 'routes' && (
-            <MapRoutes />
+            <ErrorBoundary>
+              <MapRoutes />
+            </ErrorBoundary>
           )}
         </div>
       </main>

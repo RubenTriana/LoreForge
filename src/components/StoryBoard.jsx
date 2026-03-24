@@ -459,7 +459,8 @@ export default function StoryBoard({ onNavigateToStep }) {
       setAiSuggestions(prev => ({ ...prev, [index]: result.analysis || result.text }));
       await logTokenUsage('Script Doctor', result.promptTokens, result.completionTokens, `Auditoría: ${beat.title}`);
     } catch (error) {
-      alert(error.message);
+      setAiSuggestions(prev => ({ ...prev, [index]: { error: true, feedback: `Error: ${error.message}` } }));
+      console.error(error);
     } finally {
       setAnalyzingBeatIndex(null);
     }

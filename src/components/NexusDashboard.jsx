@@ -7,7 +7,10 @@ import {
   BarChart, Bar, Legend, Cell
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, DollarSign, Activity, Filter, Calendar, History, ArrowUpRight, Search } from 'lucide-react';
+import { 
+  Cpu, DollarSign, Activity, Filter, Calendar, History, ArrowUpRight, Search,
+  Users, Skull, MapPin, Box, Type, PencilLine, Languages
+} from 'lucide-react';
 
 export default function NexusDashboard() {
   const { activeUniverseId } = useUiStore();
@@ -37,6 +40,53 @@ export default function NexusDashboard() {
     });
     return Object.values(groups).sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [logs]);
+
+  const universes = useLiveQuery(() => db.universes.toArray()) || [];
+  const allCharacters = useLiveQuery(() => db.characters.where({ universeId: activeUniverseId || 0 }).toArray()) || [];
+  const allLocations = useLiveQuery(() => db.locations.where({ universeId: activeUniverseId || 0 }).toArray()) || [];
+  const allObjects = useLiveQuery(() => db.objects.where({ universeId: activeUniverseId || 0 }).toArray()) || [];
+  const allBeats = useLiveQuery(() => db.staircase.where({ universeId: activeUniverseId || 0 }).toArray()) || [];
+
+  const universeStats = useMemo(() => {
+    const deathKeywords = ['muere', 'muerto', 'muerta', 'muerte', 'asesinado', 'asesinada', 'fallece', 'liquida', 'eliminado', 'ejecutado'];
+    
+    const deadCount = allCharacters.filter(c => {
+      const combined = `${c.description} ${c.physical} ${c.psychological} ${c.spiritual}`.toLowerCase();
+      return deathKeywords.some(kw => combined.includes(kw));
+    }).length;
+
+    const aliveCount = allCharacters.length - deadCount;
+
+    // Calculate word and character counts across all text
+    let totalChars = 0;
+    let totalWords = 0;
+
+    const processText = (text) => {
+      if (!text) return;
+      totalChars += text.length;
+      totalWords += text.trim().split(/\s+/).filter(Boolean).length;
+    };
+
+    allCharacters.forEach(c => {
+      processText(c.description);
+      processText(c.physical);
+      processText(c.psychological);
+      processText(c.spiritual);
+    });
+    allLocations.forEach(l => processText(l.description));
+    allObjects.forEach(o => processText(o.description));
+    allBeats.forEach(b => processText(b.content));
+
+    return {
+      totalCharacters: allCharacters.length,
+      aliveCount,
+      deadCount,
+      totalLocations: allLocations.length,
+      totalObjects: allObjects.length,
+      totalWords,
+      totalChars
+    };
+  }, [allCharacters, allLocations, allObjects, allBeats]);
 
   const stats = useMemo(() => {
     const totalTokens = logs.reduce((sum, log) => sum + (log.promptTokens + log.completionTokens), 0);
@@ -87,6 +137,44 @@ export default function NexusDashboard() {
           subValue="Eficiencia de tokens"
         />
       </div>
+      
+      {/* World Stats Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        style={{ marginTop: '1rem' }}
+      >
+        <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Languages size={20} color="var(--accent)" /> Censo del Universo
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+          <StatCard 
+            icon={<Users size={20} color="#8b5cf6" />} 
+            label="Habitantes Totales" 
+            value={universeStats.totalCharacters} 
+            subValue={`${universeStats.aliveCount} Vivos / ${universeStats.deadCount} Caídos`}
+          />
+          <StatCard 
+            icon={<MapPin size={20} color="#ec4899" />} 
+            label="Ubicaciones" 
+            value={universeStats.totalLocations} 
+            subValue="Ciudades y puntos de interés"
+          />
+          <StatCard 
+            icon={<Box size={20} color="#f97316" />} 
+            label="Inventario" 
+            value={universeStats.totalObjects} 
+            subValue="Objetos e items mágicos"
+          />
+          <StatCard 
+            icon={<Type size={20} color="#06b6d4" />} 
+            label="Total de Palabras" 
+            value={universeStats.totalWords.toLocaleString()} 
+            subValue={`${universeStats.totalChars.toLocaleString()} caracteres`}
+          />
+        </div>
+      </motion.div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
         

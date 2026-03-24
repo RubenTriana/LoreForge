@@ -21,6 +21,9 @@ export default function SettingsPanel() {
     systemRole: ''
   });
 
+  const [testStatus, setTestStatus] = useState({ type: '', message: '' });
+  const [isTesting, setIsTesting] = useState(false);
+
   useEffect(() => {
     if (settings) {
       setLocalSettings(settings);
@@ -28,9 +31,6 @@ export default function SettingsPanel() {
   }, [settings]);
 
   if (!isSettingsModalOpen) return null;
-
-  const [testStatus, setTestStatus] = useState({ type: '', message: '' });
-  const [isTesting, setIsTesting] = useState(false);
 
   const handleSave = async () => {
     const id = settings?.id;
