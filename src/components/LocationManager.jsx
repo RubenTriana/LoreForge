@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useUiStore } from '../store/uiStore';
 import { MapPin, Plus, Trash2, Edit2, X, Check } from 'lucide-react';
 
-export default function LocationManager({ universeId }) {
+export default function LocationManager() {
+  const { activeUniverseId: universeId } = useUiStore();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '' });

@@ -1,19 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../db/db';
+import { useUiStore } from '../store/uiStore';
+import { useLiveQuery } from 'dexie-react-hooks';
 
-export default function WorldManager({ universe }) {
-  const [lore, setLore] = useState(universe?.lore || '');
+export default function WorldManager() {
+  const { activeUniverseId } = useUiStore();
+  const universe = useLiveQuery(() => db.universes.get(activeUniverseId), [activeUniverseId]);
+  const [lore, setLore] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (universe?.lore) {
       setLore(universe.lore);
     }
   }, [universe]);
 
   const handleSave = async () => {
-    await db.universes.update(universe.id, { lore });
-    setIsEditing(false);
+    if (activeUniverseId) {
+      await db.universes.update(activeUniverseId, { lore });
+      setIsEditing(false);
+    }
   };
 
   return (

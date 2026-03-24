@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useUiStore } from '../store/uiStore';
 import { Calendar, Plus, Trash2, Edit2, X, Check } from 'lucide-react';
 
-export default function TimelineManager({ universeId }) {
+export default function TimelineManager() {
+  const { activeUniverseId: universeId } = useUiStore();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ title: '', date: '', description: '' });

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useUiStore } from '../store/uiStore';
 import { 
   ChevronRight, Save, User as UserIcon, Type, Target, Clock, 
-  CheckCircle2, Info, Plus, X, Users, AtSign, MapPin
+  CheckCircle2, Info, Plus, X, Users, AtSign, MapPin, Swords
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -25,7 +26,8 @@ const SNYDER_BEATS = [
   { title: "Imagen Final", objective: "El espejo de la imagen inicial, mostrando el cambio total.", pages: "220" }
 ];
 
-export default function EventStaircase({ universeId, initialStep = 0, highlightCharId = null }) {
+export default function EventStaircase({ initialStep = 0, highlightCharId = null }) {
+  const { activeUniverseId: universeId } = useUiStore();
   const [selectedStep, setSelectedStep] = useState(initialStep);
   const [editingContent, setEditingContent] = useState("");
   const [involvedIds, setInvolvedIds] = useState([]);
@@ -41,7 +43,30 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
     () => universeId ? db.locations.where('universeId').equals(Number(universeId)).toArray() : [], 
     [universeId]
   ) || [];
-  const staircaseData = useLiveQuery(() => universeId ? db.staircase.where({ universeId }).first() : null, [universeId]);
+  
+  const staircaseSteps = useLiveQuery(
+    () => universeId ? db.staircase.where({ universeId }).sortBy('stepNumber') : [],
+    [universeId]
+  ) || [];
+
+  // Map database records to a stable 15-step local array
+  const steps = useMemo(() => {
+    const arr = Array(15).fill(null).map((_, i) => ({
+      stepNumber: i,
+      title: SNYDER_BEATS[i].title,
+      content: '',
+      characterIds: [],
+      locationId: null,
+      charSummaries: {}
+    }));
+    
+    staircaseSteps.forEach(s => {
+      if (s.stepNumber >= 0 && s.stepNumber < 15) {
+        arr[s.stepNumber] = { ...arr[s.stepNumber], ...s };
+      }
+    });
+    return arr;
+  }, [staircaseSteps]);
 
   useEffect(() => {
     setSelectedStep(initialStep);
@@ -51,19 +76,13 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
   }, [initialStep, highlightCharId]);
 
   useEffect(() => {
-    if (staircaseData) {
-      const steps = JSON.parse(staircaseData.steps || '[]');
-      if (steps[selectedStep]) {
-        setEditingContent(steps[selectedStep].content || '');
-        setInvolvedIds(steps[selectedStep].characterIds || []);
-        setSelectedLocationId(steps[selectedStep].locationId || null);
-      } else {
-        setEditingContent('');
-        setInvolvedIds([]);
-        setSelectedLocationId(null);
-      }
+    const currentStepData = steps[selectedStep];
+    if (currentStepData) {
+      setEditingContent(currentStepData.content || '');
+      setInvolvedIds(currentStepData.characterIds || []);
+      setSelectedLocationId(currentStepData.locationId || null);
     }
-  }, [staircaseData, selectedStep]);
+  }, [steps, selectedStep]);
 
   const processMentions = (text, currentIds) => {
     if (!text || !text.includes('@')) return currentIds;
@@ -82,26 +101,22 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
 
   const saveCurrentStep = async () => {
     const finalIds = processMentions(editingContent, involvedIds);
-    const existing = await db.staircase.where({ universeId }).first();
-    let steps = existing ? JSON.parse(existing.steps) : Array(15).fill({ content: '', characterIds: [], charSummaries: {} });
+    const currentStepData = steps[selectedStep];
     
-    if (steps.length < 15) {
-       steps = [...steps, ...Array(15 - steps.length).fill({ content: '', characterIds: [], charSummaries: {} })];
-    }
-
-    // Preserve summaries when saving narrative
-    const currentSummaries = steps[selectedStep]?.charSummaries || {};
-    steps[selectedStep] = { 
-      content: editingContent, 
+    const record = {
+      ...currentStepData,
+      universeId,
+      stepNumber: selectedStep,
+      title: SNYDER_BEATS[selectedStep].title,
+      content: editingContent,
       characterIds: finalIds,
-      locationId: selectedLocationId,
-      charSummaries: currentSummaries 
+      locationId: selectedLocationId
     };
 
-    if (existing) {
-      await db.staircase.update(existing.id, { steps: JSON.stringify(steps) });
+    if (currentStepData.id) {
+      await db.staircase.update(currentStepData.id, record);
     } else {
-      await db.staircase.add({ universeId, steps: JSON.stringify(steps) });
+      await db.staircase.add(record);
     }
   };
 
@@ -130,7 +145,7 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
         
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {SNYDER_BEATS.map((beat, i) => {
-            const stepData = staircaseData ? JSON.parse(staircaseData.steps || '[]')[i] : null;
+            const stepData = steps[i];
             const isCompleted = stepData && stepData.content && stepData.content.length > 5;
             return (
               <button key={i} onClick={() => setSelectedStep(i)}
@@ -195,7 +210,7 @@ export default function EventStaircase({ universeId, initialStep = 0, highlightC
            </div>
 
            <button onClick={saveCurrentStep} className="glass" style={{ padding: '12px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)' }}>
-              <Save size={18} /> Guardar Guion General
+              <Swords size={18} /> Guardar Guion General
            </button>
         </div>
 

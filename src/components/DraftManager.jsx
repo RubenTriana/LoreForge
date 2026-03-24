@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useUiStore } from '../store/uiStore';
 import { 
   FileText, Plus, Trash2, Edit2, X, Check, BookOpen, Film, Clapperboard, 
   Sparkles, CheckCircle, AlertCircle, Users, MapPin, Package, Save
 } from 'lucide-react';
 
-export default function DraftManager({ universeId }) {
+export default function DraftManager() {
+  const { activeUniverseId: universeId } = useUiStore();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ title: '', type: 'novel', content: '' });

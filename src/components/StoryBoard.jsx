@@ -2,11 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useUiStore } from '../store/uiStore';
+import { analyzeWithScriptDoctor } from '../services/aiService';
+import { logTokenUsage } from '../db/telemetry';
 import { 
   TrendingUp, Users, Save, CheckCircle2, Target, MessageSquare, 
   Sparkles, Map, Info, Activity, AlertTriangle, ThermometerSun, Brain,
   Image as ImageIcon, Type, Zap, Scale, DoorOpen, Heart, Smile, ArrowUp, 
-  ShieldAlert, Skull, Moon, Key, Swords, Camera, Eye, HelpCircle
+  ShieldAlert, Skull, Moon, Key, Swords, Camera, Eye, HelpCircle, Loader2
 } from 'lucide-react';
 
 const SNYDER_BEATS = [
@@ -103,7 +106,7 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
         })}
         
         {nodePositions.map((pos, i) => {
-          const audit = auditData[i];
+          const audit = auditData && auditData[i] ? auditData[i] : { status: 'PENDIENTE', sentiment: {} };
           const isPending = audit.status === 'PENDIENTE';
           const isGlowing = !isPending;
           const statusColor = audit.status === 'EXITOSO' ? '#10b981' : (audit.status === 'DÉBIL' ? '#f59e0b' : (audit.status === 'MUERTE' ? '#ef4444' : '#666'));
@@ -111,20 +114,20 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
           
           let IconComp = HelpCircle;
           if (audit.status === 'MUERTE') IconComp = Skull;
-          else if (SNYDER_BEATS[i].title.includes('Imagen')) IconComp = ImageIcon; // Use ImageIcon as imported
-          else if (SNYDER_BEATS[i].title.includes('Tema')) IconComp = Type;
-          else if (SNYDER_BEATS[i].title.includes('Planteamiento')) IconComp = Users;
-          else if (SNYDER_BEATS[i].title.includes('Catalizador')) IconComp = Zap;
-          else if (SNYDER_BEATS[i].title.includes('Debate')) IconComp = Scale;
-          else if (SNYDER_BEATS[i].title.includes('Acto 2')) IconComp = DoorOpen;
-          else if (SNYDER_BEATS[i].title.includes('Trama B')) IconComp = Heart;
-          else if (SNYDER_BEATS[i].title.includes('Risas')) IconComp = Smile;
-          else if (SNYDER_BEATS[i].title.includes('Medio')) IconComp = ArrowUp;
-          else if (SNYDER_BEATS[i].title.includes('Cerco')) IconComp = ShieldAlert;
-          else if (SNYDER_BEATS[i].title.includes('Perdido')) IconComp = Skull;
-          else if (SNYDER_BEATS[i].title.includes('Alma')) IconComp = Moon;
-          else if (SNYDER_BEATS[i].title.includes('Acto 3')) IconComp = Key;
-          else if (SNYDER_BEATS[i].title.includes('Final')) IconComp = Swords;
+          else if (SNYDER_BEATS[i]?.title.includes('Imagen')) IconComp = ImageIcon; 
+          else if (SNYDER_BEATS[i]?.title.includes('Tema')) IconComp = Type;
+          else if (SNYDER_BEATS[i]?.title.includes('Planteamiento')) IconComp = Users;
+          else if (SNYDER_BEATS[i]?.title.includes('Catalizador')) IconComp = Zap;
+          else if (SNYDER_BEATS[i]?.title.includes('Debate')) IconComp = Scale;
+          else if (SNYDER_BEATS[i]?.title.includes('Acto 2')) IconComp = DoorOpen;
+          else if (SNYDER_BEATS[i]?.title.includes('Trama B')) IconComp = Heart;
+          else if (SNYDER_BEATS[i]?.title.includes('Risas')) IconComp = Smile;
+          else if (SNYDER_BEATS[i]?.title.includes('Medio')) IconComp = ArrowUp;
+          else if (SNYDER_BEATS[i]?.title.includes('Cerco')) IconComp = ShieldAlert;
+          else if (SNYDER_BEATS[i]?.title.includes('Perdido')) IconComp = Skull;
+          else if (SNYDER_BEATS[i]?.title.includes('Alma')) IconComp = Moon;
+          else if (SNYDER_BEATS[i]?.title.includes('Acto 3')) IconComp = Key;
+          else if (SNYDER_BEATS[i]?.title.includes('Final')) IconComp = Swords;
 
           return (
             <motion.g 
@@ -196,6 +199,14 @@ const EvolutionCanvas = ({ steps, selectedCharId, onNodeClick, auditData }) => {
 };
 
 const ScriptDoctorAudit = ({ auditData, onNavigateToStep }) => {
+  if (!auditData || auditData.length === 0) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>
+        No hay datos de auditoría disponibles. Selecciona un personaje con contenido.
+      </div>
+    );
+  }
+
   return (
     <div className="script-doctor-table" style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '1rem', border: '1px solid var(--glass-border)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -261,18 +272,38 @@ const ScriptDoctorAudit = ({ auditData, onNavigateToStep }) => {
   );
 };
 
-export default function StoryBoard({ universeId, onNavigateToStep }) {
+export default function StoryBoard({ onNavigateToStep }) {
+  const { activeUniverseId: universeId } = useUiStore();
   const [selectedCharId, setSelectedCharId] = useState(null);
   const [localSummaries, setLocalSummaries] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState('canvas'); // 'canvas' | 'doctor'
+  const [analyzingBeatIndex, setAnalyzingBeatIndex] = useState(null);
+  const [aiSuggestions, setAiSuggestions] = useState({});
 
   const characters = useLiveQuery(() => db.characters.where({ universeId }).toArray()) || [];
-  const staircaseData = useLiveQuery(() => db.staircase.where({ universeId }).first(), [universeId]);
+  const staircaseSteps = useLiveQuery(
+    () => universeId ? db.staircase.where({ universeId }).sortBy('stepNumber') : [],
+    [universeId]
+  ) || [];
 
   const steps = useMemo(() => {
-    return staircaseData ? JSON.parse(staircaseData.steps || '[]') : Array(15).fill({ content: '', characterIds: [], charSummaries: {} });
-  }, [staircaseData]);
+    const arr = Array(15).fill(null).map((_, i) => ({
+      stepNumber: i,
+      title: SNYDER_BEATS[i].title,
+      content: '',
+      characterIds: [],
+      locationId: null,
+      charSummaries: {}
+    }));
+    
+    staircaseSteps.forEach(s => {
+      if (s.stepNumber >= 0 && s.stepNumber < 15) {
+        arr[s.stepNumber] = { ...arr[s.stepNumber], ...s };
+      }
+    });
+    return arr;
+  }, [staircaseSteps]);
 
   const auditData = useMemo(() => {
     if (!steps || !selectedCharId) return [];
@@ -313,18 +344,18 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
 
       const intensity = Math.min(Math.floor((combined.length / 50) * 20) + (combined.includes('!') ? 20 : 0), 100);
       
-      let sentiment = { icon: "🕊️", label: "Vulnerabilidad", color: "#a78bfa" }; // Violet
+      let sentiment = { icon: "🕊️", label: "Vulnerabilidad", color: "#a78bfa" }; 
       
       if (isDeadState) {
         sentiment = { icon: "💀", label: "Final de Arco", color: "#ef4444" };
       } else if (combined.includes('victoria') || combined.includes('gana') || combined.includes('logra') || combined.includes('salva') || combined.includes('tesoro')) {
-        sentiment = { icon: "👑", label: "Triunfo / Éxito", color: "#fbbf24" }; // Gold
+        sentiment = { icon: "👑", label: "Triunfo / Éxito", color: "#fbbf24" }; 
       } else if (combined.includes('paz') || combined.includes('hogar') || combined.includes('descansa') || combined.includes('tranquilo')) {
-        sentiment = { icon: "🌿", label: "Paz / Equilibrio", color: "#2dd4bf" }; // Teal
+        sentiment = { icon: "🌿", label: "Paz / Equilibrio", color: "#2dd4bf" }; 
       } else if (intensity > 70 || combined.includes('guerra') || combined.includes('caos') || combined.includes('tensión')) {
-        sentiment = { icon: "🌑", label: "Caos / Tensión", color: "#f87171" }; // Reddish
+        sentiment = { icon: "🌑", label: "Caos / Tensión", color: "#f87171" }; 
       } else if (combined.includes('decide') || combined.includes('elige') || combined.includes('promesa')) {
-        sentiment = { icon: "⚖️", label: "Resolución", color: "#60a5fa" }; // Blue
+        sentiment = { icon: "⚖️", label: "Resolución", color: "#60a5fa" }; 
       }
       
       // Objective verification
@@ -356,13 +387,23 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
   }, [selectedCharId, steps]);
 
   const saveEvolution = async () => {
-    if (!selectedCharId || !staircaseData) return;
+    if (!selectedCharId || !steps) return;
     setIsSaving(true);
-    const updatedSteps = steps.map((step, i) => ({
-      ...step,
-      charSummaries: { ...(step.charSummaries || {}), [selectedCharId]: localSummaries[i] || '' }
-    }));
-    await db.staircase.update(staircaseData.id, { steps: JSON.stringify(updatedSteps) });
+    
+    const promises = steps.map(step => {
+      const record = {
+        ...step,
+        universeId,
+        charSummaries: { ...(step.charSummaries || {}), [selectedCharId]: localSummaries[step.stepNumber] || '' }
+      };
+      if (record.id) {
+        return db.staircase.update(record.id, record);
+      } else {
+        return db.staircase.add(record);
+      }
+    });
+    
+    await Promise.all(promises);
     setIsSaving(false);
   };
 
@@ -376,7 +417,7 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
     
     steps.forEach((step, i) => {
       const content = step.content || '';
-      // Split into sentences (careful with acronyms, but good enough for now)
+      // Split into sentences 
       const sentences = content.split(/([.!?]\s+)/).filter(Boolean);
       
       const relevantSentences = [];
@@ -399,6 +440,31 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
     setLocalSummaries(newSummaries);
   };
 
+  const handleScriptDoctor = async (index) => {
+    const beat = SNYDER_BEATS[index];
+    const content = localSummaries[index] || '';
+    if (!content.trim()) {
+      alert("Por favor, escribe un resumen para este hito antes de analizarlo.");
+      return;
+    }
+    const settings = await db.settings.toCollection().first();
+    if (!settings || !settings.apiKey) {
+      alert("⚠️ No conectado a la IA.\n\nPor favor, configura tu API Key en el Portal de IA (botón en la parte inferior izquierda).");
+      return;
+    }
+
+    setAnalyzingBeatIndex(index);
+    try {
+      const result = await analyzeWithScriptDoctor(beat.title, content, universeId, beat.objective);
+      setAiSuggestions(prev => ({ ...prev, [index]: result.analysis || result.text }));
+      await logTokenUsage('Script Doctor', result.promptTokens, result.completionTokens, `Auditoría: ${beat.title}`);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setAnalyzingBeatIndex(null);
+    }
+  };
+
   const selectedChar = characters.find(c => c.id === selectedCharId);
 
   return (
@@ -408,7 +474,7 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Activity color="var(--accent)" /> Evolución: {selectedChar ? selectedChar.name : 'Tablero Maestro'}
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Mapa estratégico de arcos narrativos con Auditoría Script Doctor.</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Mapa estratégico de arcos narrativos con Auditoría Script Doctor AI.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
            {selectedCharId && (
@@ -416,7 +482,7 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
                <button 
                  onClick={handleSmartSync}
                  className="glass" 
-                 style={{ padding: '10px 15px', color: 'var(--accent)', borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                 style={{ padding: '10px 15px', color: 'var(--accent)', borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
                  title="Extraer historias de la Escritura Maestra"
                >
                   <Sparkles size={18} /> Sincronización Inteligente
@@ -432,13 +498,14 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
                    display: 'flex',
                    alignItems: 'center',
                    justifyContent: 'center',
-                   gap: '10px'
+                   gap: '10px',
+                   cursor: 'pointer'
                  }}
                >
                   {viewMode === 'canvas' ? <Brain size={18} /> : <Map size={18} />} 
                   {viewMode === 'canvas' ? 'Modo Script Doctor' : 'Ver Mapa Visual'}
                </button>
-               <button onClick={saveEvolution} disabled={isSaving} className="glass" style={{ padding: '10px 25px', background: 'var(--accent)', border: 'none', color: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px', justifyContent: 'center' }}>
+               <button onClick={saveEvolution} disabled={isSaving} className="glass" style={{ padding: '10px 25px', background: 'var(--accent)', border: 'none', color: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px', justifyContent: 'center', cursor: 'pointer' }}>
                   <Save size={18} /> Actualizar
                </button>
              </>
@@ -451,7 +518,7 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
            <h3 style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.5, marginBottom: '1rem' }}>ELENCO</h3>
            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {characters.map(char => (
-                <button key={char.id} onClick={() => setSelectedCharId(char.id)} style={{ padding: '12px', borderRadius: '12px', background: selectedCharId === char.id ? 'var(--accent)' : 'rgba(255,255,255,0.03)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button key={char.id} onClick={() => setSelectedCharId(char.id)} style={{ padding: '12px', borderRadius: '12px', background: selectedCharId === char.id ? 'var(--accent)' : 'rgba(255,255,255,0.03)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                   <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: `url(${char.imageUrl})`, backgroundSize: 'cover' }} />
                   <span style={{ fontSize: '13px' }}>{char.name}</span>
                 </button>
@@ -475,31 +542,132 @@ export default function StoryBoard({ universeId, onNavigateToStep }) {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                    {SNYDER_BEATS.map((beat, i) => (
-                     <div key={i} id={`editor-${i}`} className="glass" style={{ padding: '1.2rem', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                     <div key={i} id={`editor-${i}`} className="glass" style={{ padding: '1.2rem', borderRadius: '16px', border: '1px solid var(--glass-border)', background: analyzingBeatIndex === i ? 'rgba(124, 58, 237, 0.05)' : 'rgba(0,0,0,0.1)' }}>
                          <div 
-                           onClick={() => onNavigateToStep(i, selectedCharId)}
                            style={{ 
                              display: 'flex', 
                              justifyContent: 'space-between', 
                              marginBottom: '1rem', 
-                             cursor: 'pointer',
                              padding: '4px',
-                             borderRadius: '8px',
-                             transition: 'all 0.2s ease'
+                             borderRadius: '8px'
                            }}
-                           className="hover-bright-subtle"
                          >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                <beat.icon size={18} color="var(--accent)" />
                                <h4 style={{ fontSize: '1.1rem' }}>{i + 1}. {beat.title}</h4>
                             </div>
-                            <span style={{ fontSize: '10px', opacity: 0.4 }}>{beat.objective}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                               <span style={{ fontSize: '10px', opacity: 0.4 }}>{beat.objective}</span>
+                               <button 
+                                 onClick={() => handleScriptDoctor(i)}
+                                 disabled={analyzingBeatIndex !== null}
+                                 className="glass"
+                                 style={{ 
+                                   padding: '4px 10px', 
+                                   fontSize: '10px', 
+                                   background: 'rgba(124, 58, 237, 0.1)', 
+                                   border: '1px solid var(--accent)', 
+                                   borderRadius: '6px',
+                                   color: 'white',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   gap: '5px',
+                                   cursor: analyzingBeatIndex !== null ? 'not-allowed' : 'pointer'
+                                 }}
+                               >
+                                 {analyzingBeatIndex === i ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                                 {analyzingBeatIndex === i ? 'Analizando...' : 'Script Doctor AI'}
+                               </button>
+                            </div>
                          </div>
-                        <textarea 
-                          value={localSummaries[i] || ''} onChange={(e) => setLocalSummaries({...localSummaries, [i]: e.target.value})}
-                          placeholder="Resume la evolución en este hito..."
-                          style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '12px', fontSize: '13px', minHeight: '80px', resize: 'none' }}
-                        />
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                          <textarea 
+                            value={localSummaries[i] || ''} onChange={(e) => setLocalSummaries({...localSummaries, [i]: e.target.value})}
+                            placeholder="Resume la evolución en este hito..."
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '12px', fontSize: '13px', minHeight: '140px', resize: 'none', border: '1px solid rgba(255,255,255,0.05)' }}
+                          />
+                          
+                          {/* AI Recommendations Internal Canvas */}
+                          <div 
+                            className="ai-recommendation-canvas"
+                            style={{ 
+                              background: 'rgba(0,0,0,0.25)', 
+                              borderRadius: '12px', 
+                              border: '1px solid rgba(124, 58, 237, 0.2)',
+                              padding: '12px',
+                              minHeight: '140px',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <AnimatePresence mode="wait">
+                              {aiSuggestions[i] ? (
+                                <motion.div 
+                                  key={`ai-content-${i}`}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase' }}>
+                                      <Brain size={14} /> Dashboard de Auditoría
+                                    </div>
+                                    {aiSuggestions[i].score !== undefined && (
+                                      <div style={{ padding: '2px 8px', background: 'var(--accent)', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' }}>
+                                        {aiSuggestions[i].score}% MATCH
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {aiSuggestions[i].score !== undefined && (
+                                    <div style={{ height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', marginBottom: '12px', overflow: 'hidden' }}>
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${aiSuggestions[i].score}%` }}
+                                        style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent), #a78bfa)' }}
+                                      />
+                                    </div>
+                                  )}
+
+                                  <div style={{ marginBottom: '10px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                                    <p style={{ fontWeight: 'bold', color: 'var(--accent)', fontSize: '10px', marginBottom: '4px' }}>ANÁLISIS:</p>
+                                    <p style={{ lineHeight: '1.4', opacity: 0.9, fontSize: '11px' }}>{aiSuggestions[i].feedback || (typeof aiSuggestions[i] === 'string' ? aiSuggestions[i] : '')}</p>
+                                    
+                                    {aiSuggestions[i].suggestions && (
+                                      <div style={{ marginTop: '10px' }}>
+                                        <p style={{ fontWeight: 'bold', color: '#10b981', fontSize: '10px', marginBottom: '4px' }}>OPCIONES DE MEJORA:</p>
+                                        <p style={{ lineHeight: '1.4', fontStyle: 'italic', opacity: 0.8, fontSize: '11px' }}>{aiSuggestions[i].suggestions}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              ) : (
+                                <motion.div 
+                                  key={`ai-empty-${i}`}
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 0.3 }}
+                                  style={{ 
+                                    height: '100%', 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    textAlign: 'center',
+                                    fontSize: '11px'
+                                  }}
+                                >
+                                  <Sparkles size={24} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                                  <p>Esperando auditoría del Script Doctor...</p>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                            
+                            {/* Decorative background grid for the "Canvas" feel */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(rgba(124, 58, 237, 0.05) 1px, transparent 1px)', backgroundSize: '15px 15px', pointerEvents: 'none', zIndex: 0 }} />
+                          </div>
+                        </div>
                      </div>
                    ))}
                 </div>

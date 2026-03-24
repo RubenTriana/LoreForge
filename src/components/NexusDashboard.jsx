@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useUiStore } from '../store/uiStore';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, Cell
@@ -8,7 +9,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, DollarSign, Activity, Filter, Calendar, History, ArrowUpRight, Search } from 'lucide-react';
 
-export default function NexusDashboard({ universeId }) {
+export default function NexusDashboard() {
+  const { activeUniverseId } = useUiStore();
   const [filterModule, setFilterModule] = useState('All');
   const [selectedLogDate, setSelectedLogDate] = useState(null);
   const [hoveredData, setHoveredData] = useState(null);

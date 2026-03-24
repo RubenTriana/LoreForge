@@ -11,6 +11,8 @@ import WorldManager from './components/WorldManager';
 import MapRoutes from './components/MapRoutes';
 import EventStaircase from './components/EventStaircase';
 import NexusDashboard from './components/NexusDashboard';
+import SettingsPanel from './components/SettingsPanel';
+import { useUiStore } from './store/uiStore';
 import { 
   Users, 
   Globe, 
@@ -25,7 +27,8 @@ import {
   Swords,
   Navigation,
   Map,
-  Activity
+  Activity,
+  Settings
 } from 'lucide-react';
 import { motion, Reorder } from 'framer-motion';
 import './index.css';
@@ -42,7 +45,7 @@ const DEFAULT_NAV_ITEMS = [
 ];
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { currentView, setView, activeUniverseId, setActiveUniverseId, toggleSettingsModal } = useUiStore();
   const [staircaseJumpStep, setStaircaseJumpStep] = useState(0);
   const [staircaseHighlightCharId, setStaircaseHighlightCharId] = useState(null);
   const [universes, setUniverses] = useState([]);
@@ -50,7 +53,7 @@ function App() {
   const handleJumpToStep = (stepIndex, charId = null) => {
     setStaircaseJumpStep(stepIndex);
     setStaircaseHighlightCharId(charId);
-    setActiveTab('staircase');
+    setView('staircase');
   };
 
   // Dynamic Nav Items with persistence
@@ -74,16 +77,20 @@ function App() {
   useEffect(() => {
     const init = async () => {
       const all = await db.universes.toArray();
+      let activeId = null;
       if (all.length === 0) {
-        await db.universes.add({ 
+        activeId = await db.universes.add({ 
           name: 'Mi Primer Universo', 
           genre: 'Fantasía', 
           description: 'Un mundo por descubrir.' 
         });
-        setUniverses(await db.universes.toArray());
+        const updatedAll = await db.universes.toArray();
+        setUniverses(updatedAll);
       } else {
         setUniverses(all);
+        activeId = all[0].id;
       }
+      setActiveUniverseId(activeId);
 
       // Seed Dummy Token Logs if empty
       const logCount = await db.token_logs.count();
@@ -114,17 +121,19 @@ function App() {
       }
     };
     init();
-  }, []);
+  }, [setActiveUniverseId]);
+
+  const activeUniverse = universes.find(u => u.id === activeUniverseId) || universes[0];
 
   return (
     <div className="app-container">
-      <nav className="sidebar glass">
+      <nav className="sidebar glass" style={{ display: 'flex', flexDirection: 'column' }}>
         <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2rem' }}>
           <Compass color="var(--accent)" size={32} />
           <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>LoreForge</h2>
         </div>
         
-        <Reorder.Group axis="y" values={navItems} onReorder={setNavItems} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, listStyle: 'none' }}>
+        <Reorder.Group axis="y" values={navItems} onReorder={setNavItems} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, listStyle: 'none', flex: 1 }}>
           {navItems.map(item => (
             <Reorder.Item 
               key={item.id} 
@@ -133,21 +142,21 @@ function App() {
               style={{ listStyle: 'none' }}
             >
               <button
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => setView(item.id)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
                   padding: '12px',
                   borderRadius: '12px',
-                  background: activeTab === item.id ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
-                  color: activeTab === item.id ? 'white' : 'var(--text-secondary)',
+                  background: currentView === item.id ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
+                  color: currentView === item.id ? 'white' : 'var(--text-secondary)',
                   border: '1px solid transparent',
-                  borderColor: activeTab === item.id ? 'transparent' : 'rgba(255,255,255,0.05)',
+                  borderColor: currentView === item.id ? 'transparent' : 'rgba(255,255,255,0.05)',
                   textAlign: 'left',
                   width: '100%',
                   fontSize: '14px',
-                  fontWeight: activeTab === item.id ? '600' : '400',
+                  fontWeight: currentView === item.id ? '600' : '400',
                   cursor: 'grab',
                   transition: 'all 0.2s ease',
                   userSelect: 'none'
@@ -159,16 +168,41 @@ function App() {
             </Reorder.Item>
           ))}
         </Reorder.Group>
+
+        <div style={{ marginTop: 'auto', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
+          <button
+            onClick={() => toggleSettingsModal()}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px',
+              borderRadius: '12px',
+              background: 'rgba(255,255,255,0.03)',
+              color: 'var(--text-secondary)',
+              border: '1px solid transparent',
+              borderColor: 'rgba(255,255,255,0.05)',
+              textAlign: 'left',
+              width: '100%',
+              fontSize: '14px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Settings size={18} />
+            Configuración de IA
+          </button>
+        </div>
       </nav>
 
       <main className="main-content">
         <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <span style={{ color: 'var(--accent)', fontSize: '0.875rem', fontWeight: '600', textTransform: 'uppercase' }}>
-              {activeTab}
+              {currentView}
             </span>
             <h1 style={{ fontSize: '2rem', marginTop: '0.5rem' }}>
-              {universes[0]?.name || 'Cargando...'}
+              {activeUniverse?.name || 'Cargando...'}
             </h1>
           </div>
           <button className="glass" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
@@ -177,52 +211,52 @@ function App() {
         </header>
 
         <div className="view-container">
-          {activeTab === 'dashboard' && (
-            <NexusDashboard universeId={universes[0]?.id} />
+          {currentView === 'dashboard' && (
+            <NexusDashboard />
           )}
           
-          {activeTab === 'characters' && (
-            <CharacterManager universeId={universes[0]?.id} />
+          {currentView === 'characters' && (
+            <CharacterManager />
           )}
 
-          {activeTab === 'drafts' && (
-            <DraftManager universeId={universes[0]?.id} />
+          {currentView === 'drafts' && (
+            <DraftManager />
           )}
 
-          {activeTab === 'objects' && (
-            <ObjectManager universeId={universes[0]?.id} />
+          {currentView === 'objects' && (
+            <ObjectManager />
           )}
 
-          {activeTab === 'board' && (
+          {currentView === 'board' && (
             <StoryBoard 
-              universeId={universes[0]?.id} 
               onNavigateToStep={handleJumpToStep}
             />
           )}
           
-          {activeTab === 'world' && (
+          {currentView === 'world' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              <WorldManager universe={universes[0]} />
-              <LocationManager universeId={universes[0]?.id} />
+              <WorldManager />
+              <LocationManager />
             </div>
           )}
 
-          {activeTab === 'staircase' && (
+          {currentView === 'staircase' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               <EventStaircase 
-                universeId={universes[0]?.id} 
                 initialStep={staircaseJumpStep}
                 highlightCharId={staircaseHighlightCharId}
               />
-              <TimelineManager universeId={universes[0]?.id} />
+              <TimelineManager />
             </div>
           )}
 
-          {activeTab === 'routes' && (
-            <MapRoutes universeId={universes[0]?.id} />
+          {currentView === 'routes' && (
+            <MapRoutes />
           )}
         </div>
       </main>
+      
+      <SettingsPanel />
     </div>
   );
 }

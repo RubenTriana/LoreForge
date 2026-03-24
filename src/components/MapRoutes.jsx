@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useUiStore } from '../store/uiStore';
 import { 
   Map as MapIcon, Navigation, Trash2, Plus, Info, 
   Image as ImageIcon, Upload, MousePointer2, Settings2,
@@ -8,20 +9,21 @@ import {
 } from 'lucide-react';
 
 const NODE_TYPES = {
-  city: { icon: Square, label: 'Ciudad/Asentamiento' },
-  ruin: { icon: Diamond, label: 'Ruina/Misterio' },
-  camp: { icon: Triangle, label: 'Campamento/Peligro' },
-  epic: { icon: Star, label: 'Hito Épico' },
-  generic: { icon: Circle, label: 'Punto de Interés' }
+  generic: { label: 'Punto de Interés', icon: Circle },
+  ciudad: { label: 'Ciudad / Asentamiento', icon: Square },
+  suceso: { label: 'Evento Clave', icon: Diamond },
+  final: { label: 'Hito Final', icon: Star },
+  peligro: { label: 'Zona de Peligro', icon: Triangle }
 };
 
 const LINE_STYLES = {
-  solid: { label: 'Camino Principal', dash: [] },
-  dashed: { label: 'Ruta Planificada', dash: [10, 5] },
-  dotted: { label: 'Ruta Histórica', dash: [2, 4] }
+  solid: { label: 'Sólida', dash: [] },
+  dashed: { label: 'Puntos', dash: [5, 5] },
+  dotted: { label: 'Fina', dash: [2, 2] }
 };
 
-export default function MapRoutes({ universeId }) {
+export default function MapRoutes() {
+  const { activeUniverseId: universeId } = useUiStore();
   const [points, setPoints] = useState([]);
   const [mapImageUrl, setMapImageUrl] = useState(null);
   const [lineStyle, setLineStyle] = useState('solid');
@@ -38,7 +40,11 @@ export default function MapRoutes({ universeId }) {
     () => universeId ? db.locations.where('universeId').equals(Number(universeId)).toArray() : [],
     [universeId]
   ) || [];
-  const staircaseData = useLiveQuery(() => universeId ? db.staircase.where({ universeId }).first() : null, [universeId]);
+  
+  const staircaseSteps = useLiveQuery(
+    () => universeId ? db.staircase.where({ universeId }).sortBy('stepNumber') : [],
+    [universeId]
+  ) || [];
 
   useEffect(() => {
     if (savedRoute) {
@@ -210,27 +216,24 @@ export default function MapRoutes({ universeId }) {
         ctx.shadowBlur = 0;
       });
 
-      // Draw Journey Overlays (if staircase has locations linked)
-      if (staircaseData) {
-        const steps = JSON.parse(staircaseData.steps || '[]');
-        steps.forEach((step, stepIdx) => {
-          if (step.locationId) {
-            const point = points.find(p => p.locationId === step.locationId);
-            if (point) {
-              // Draw a small badge with step number
-              ctx.beginPath();
-              ctx.fillStyle = 'var(--accent)';
-              ctx.arc(point.x - 20, point.y - 20, 10, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = 'white';
-              ctx.font = 'bold 10px Inter';
-              ctx.textAlign = 'center';
-              ctx.fillText(stepIdx + 1, point.x - 20, point.y - 16);
-              ctx.textAlign = 'left';
-            }
+      // Draw Journey Overlays (using normalized steps)
+      staircaseSteps.forEach((step, stepIdx) => {
+        if (step.locationId) {
+          const point = points.find(p => p.locationId === step.locationId);
+          if (point) {
+            // Draw a small badge with step number
+            ctx.beginPath();
+            ctx.fillStyle = 'var(--accent)';
+            ctx.arc(point.x - 20, point.y - 20, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 10px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText(step.stepNumber + 1, point.x - 20, point.y - 16);
+            ctx.textAlign = 'left';
           }
-        });
-      }
+        }
+      });
     };
 
     if (mapImageUrl) {
@@ -241,7 +244,7 @@ export default function MapRoutes({ universeId }) {
       imageRef.current = null;
       draw();
     }
-  }, [points, mapImageUrl, lineStyle, lineColor, selectedPointId]);
+  }, [points, mapImageUrl, lineStyle, lineColor, selectedPointId, staircaseSteps, locations]);
 
   return (
     <div className="map-routes">

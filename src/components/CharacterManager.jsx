@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { db } from '../db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useUiStore } from '../store/uiStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, Trash2, Edit2, X, Check, Image as ImageIcon, Heart, Zap, Ghost, Camera, MoreVertical } from 'lucide-react';
 
@@ -31,7 +32,8 @@ const DropdownItem = ({ icon, label, onClick, color = 'white' }) => (
   </button>
 );
 
-export default function CharacterManager({ universeId }) {
+export default function CharacterManager() {
+  const { activeUniverseId: universeId } = useUiStore();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [activeDropdownId, setActiveDropdownId] = useState(null); // Menu Dropdown state
